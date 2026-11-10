@@ -1,0 +1,23 @@
+services:
+  dee-core:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nickdev24/dee-bot-agents:4.0-supreme
+    container_name: dee-bot-agents-core
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - DEE_PORT=${DEE_PORT:-8091}
+      - DEE_AUTO_EARS=${DEE_AUTO_EARS:-0}
+      - DEE_AUTO_EYES=${DEE_AUTO_EYES:-0}
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config:ro
+      - /home/facu/freellmapi:/host_freellmapi:ro
+    devices:
+      - /dev/snd:/dev/snd
+    deploy:
+      resources:
+        limits:
+          memory: 512M

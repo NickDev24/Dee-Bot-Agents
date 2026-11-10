@@ -1,0 +1,50 @@
+{
+  "sentinel_version": "4.0",
+  "kill_switch_phrases": [
+    "dee alto",
+    "dee detente",
+    "dee para",
+    "dee basta",
+    "abortar todo",
+    "kill switch"
+  ],
+  "deny_always_patterns": [
+    "rm -rf /",
+    "rm -rf /*",
+    "rm -rf ~",
+    "rm -rf /home/facu",
+    "mkfs.",
+    "dd if=/dev/zero",
+    ":(){ :|:& };:",
+    "chmod -R 777 /",
+    "cat /etc/shadow",
+    "cat ~/.ssh/id_"
+  ],
+  "ask_facu_patterns": [
+    "rm -rf",
+    "systemctl stop",
+    "systemctl disable",
+    "reboot",
+    "shutdown",
+    "poweroff",
+    "git push --force",
+    "docker system prune",
+    "apt remove",
+    "apt purge",
+    "ufw disable",
+    "iptables -F"
+  ],
+  "allowed_roots": [
+    "/home/facu/investigar-agentes-autonomos",
+    "/home/facu/Jarvis",
+    "/tmp"
+  ],
+  "authorized_lan_hosts": [
+    "127.0.0.1",
+    "localhost",
+    "facu",
+    "barto",
+    "manager1",
+    "192.168.100.22"
+  ]
+}

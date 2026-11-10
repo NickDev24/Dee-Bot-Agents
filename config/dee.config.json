@@ -1,0 +1,120 @@
+{
+  "project": {
+    "name": "Dee-Bot-Agents",
+    "version": "4.0.0",
+    "codename": "Argon-Supreme",
+    "owner": "Facu",
+    "language": "es-AR"
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8091,
+    "serve_frontend": true,
+    "cors_origins": ["*"]
+  },
+  "ai_gateway_pool": {
+    "strategy": "lowest_latency_first",
+    "timeout_first_byte_s": 12.0,
+    "timeout_total_s": 45.0,
+    "endpoints": [
+      {
+        "id": "facu_freellm",
+        "node": "facu",
+        "url": "http://127.0.0.1:3001/v1",
+        "priority": 1
+      },
+      {
+        "id": "barto_freellm",
+        "node": "barto",
+        "url": "http://barto:3001/v1",
+        "priority": 2
+      },
+      {
+        "id": "manager1_freellm",
+        "node": "manager1",
+        "url": "http://manager1:3001/v1",
+        "priority": 3
+      }
+    ],
+    "models": {
+      "router": "auto:fast",
+      "planner": "auto",
+      "critic_grill": "auto",
+      "memory_distiller": "auto:fast"
+    }
+  },
+  "efficiency": {
+    "fast_intent_zero_token": true,
+    "dynamic_tool_pruning": true,
+    "max_tools_per_turn": 4,
+    "max_tool_output_chars": 4000,
+    "max_messages_per_round": 4,
+    "max_turns_per_agent_per_round": 2,
+    "max_hops_between_nodes": 4,
+    "memory_max_chars_per_agent": 4000
+  },
+  "sensory": {
+    "ears": {
+      "enabled_on_boot": true,
+      "primary_mic": "facu",
+      "failover_mic": "manager1",
+      "sample_rate": 16000,
+      "chunk_ms": 300,
+      "wake_clap_enabled": true,
+      "clap_rms_threshold": 0.22,
+      "clap_window_min_s": 0.12,
+      "clap_window_max_s": 0.85,
+      "vad_enabled": true,
+      "vad_min_rms": 0.06,
+      "vad_noise_multiplier": 2.5,
+      "echo_suppression_pad_s": 0.9,
+      "barge_in_rms_threshold": 0.42,
+      "verify_speaker_voice": true,
+      "speaker_similarity_threshold": 0.76
+    },
+    "eyes": {
+      "enabled_on_boot": false,
+      "disabled_cameras": ["facu"],
+      "camera_order": ["carecam", "manager1", "barto"],
+      "poll_interval_present_s": 10.0,
+      "poll_interval_watchdog_s": 4.0,
+      "motion_diff_threshold": 18.0,
+      "dhash_hamming_threshold": 3,
+      "face_cosine_threshold": 0.40,
+      "greeting_cooldown_minutes": 20,
+      "intruder_deterrence_voice": true
+    },
+    "voice": {
+      "tts_priority": ["edge", "freellmapi", "piper", "melotts", "gtts"],
+      "stt_priority": ["freellmapi", "whisper-cloudflare", "faster-whisper-local"],
+      "edge_voice": "es-AR-TomasNeural",
+      "piper_model": "es_ES-carlfm-x_low.onnx",
+      "piper_alt_model": "es_AR-daniela-high.onnx",
+      "speed": 1.05,
+      "sentence_streaming": true,
+      "phonetic_overrides": {
+        "Facu": "Faku",
+        "barto": "Barto",
+        "Dee": "Di"
+      }
+    },
+    "butler": {
+      "max_tmp_mb": 100,
+      "max_tmp_files": 200,
+      "max_tmp_days": 1,
+      "min_free_disk_gb": 2.0,
+      "max_tts_cache_mb": 300,
+      "max_tts_files": 400,
+      "tts_retention_days": 7,
+      "max_log_mb": 5,
+      "conservar_max_mb": 200
+    }
+  },
+  "frontend_3d": {
+    "fps_active": 30,
+    "fps_idle_present": 8,
+    "fps_away_or_minimized": 0,
+    "max_pixel_ratio": 1.25,
+    "shadows": false
+  }
+}

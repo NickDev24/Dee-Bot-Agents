@@ -1,0 +1,81 @@
+{
+  "nodes": {
+    "facu": {
+      "id": "facu",
+      "name": "FACU // Master Cognitivo",
+      "role": "master",
+      "optional": false,
+      "host": "127.0.0.1",
+      "cpu_spec": "Intel Pentium B950 2c @ 2.1GHz",
+      "ram_gb": 11.0,
+      "gpu_spec": "Intel HD Gen2 (X11)",
+      "hermes_url": "http://127.0.0.1:8642",
+      "bench_url": "http://127.0.0.1:8731",
+      "file_gw_url": "http://127.0.0.1:8730",
+      "freellm_url": "http://127.0.0.1:3001/v1",
+      "capabilities": ["orchestration", "x11_desktop", "audio_io", "local_shell", "local_files"]
+    },
+    "barto": {
+      "id": "barto",
+      "name": "BARTO // Worker Obra Pesada",
+      "role": "worker_heavy",
+      "optional": true,
+      "host": "192.168.100.28",
+      "hostname": "barto",
+      "cpu_spec": "Intel Celeron N4020 2c",
+      "ram_gb": 7.6,
+      "gpu_spec": "Intel UHD 600 (X11)",
+      "hermes_url": "http://barto:8642",
+      "bench_url": "http://barto:8731",
+      "file_gw_url": "http://barto:8730",
+      "freellm_url": "http://barto:3001/v1",
+      "camera": {
+        "kind": "ssh_ffmpeg",
+        "host": "barto",
+        "device": "/dev/video0",
+        "size": "640x480",
+        "rol": "secundaria"
+      },
+      "capabilities": ["heavy_build", "docker_sandbox", "git_worktree", "massive_storage", "camera_secondary"]
+    },
+    "manager1": {
+      "id": "manager1",
+      "name": "MANAGER1 // Worker Web & Visión",
+      "role": "worker_web_vision",
+      "optional": true,
+      "host": "192.168.100.39",
+      "hostname": "manager1",
+      "cpu_spec": "Intel Celeron N4020 2c",
+      "ram_gb": 7.6,
+      "gpu_spec": "Intel UHD 600 (X11)",
+      "hermes_url": "http://manager1:8642",
+      "bench_url": "http://manager1:8731",
+      "file_gw_url": "http://manager1:8730",
+      "freellm_url": "http://manager1:3001/v1",
+      "camera": {
+        "kind": "ssh_ffmpeg",
+        "host": "manager1",
+        "device": "/dev/video0",
+        "size": "640x480",
+        "rol": "principal"
+      },
+      "mic": {
+        "kind": "ssh_arecord",
+        "host": "manager1",
+        "rol": "alternativa"
+      },
+      "capabilities": ["browser_multi_account", "osint_scraping", "camera_primary", "mic_failover"]
+    }
+  },
+  "peripherals": {
+    "carecam": {
+      "id": "carecam",
+      "name": "CARECAM // Ojo Perimetral IP",
+      "kind": "http_snapshot",
+      "url": "http://192.168.100.22",
+      "rutas": ["/jpeg.cgi", "/snapshot.jpg", "/photo.jpg"],
+      "size": "640x368",
+      "rol": "ip_oficina"
+    }
+  }
+}

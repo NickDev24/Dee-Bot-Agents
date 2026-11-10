@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+build/
+develop-eggs/
+eggs/
+.eggs/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Node / Frontend
+frontend/node_modules/
+node_modules/
+*.log
+npm-debug.log*
+
+# Secrets & Environment
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+
+# Runtime Data, Biometrics, Media, TTS Cache & Logs (Keep private on host)
+data/
+!data/.gitkeep
+/tmp/dee_*

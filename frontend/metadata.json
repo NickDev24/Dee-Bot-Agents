@@ -1,0 +1,6 @@
+{
+  "name": "KRONOS // Cyber-Bird Agente Supremo",
+  "description": "Agente autónomo híbrido (Hermes + Rakazo + OpenGrok) con avatar interactivo estilo Angry Birds, gestos dinámicos, saltos de alegría, sincronización labial y humor profesional.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

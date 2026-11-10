@@ -1,0 +1,31 @@
+name: Control Branch Version & Security Audit
+
+on:
+  push:
+    branches: [ control-ops ]
+  workflow_dispatch:
+
+jobs:
+  control-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify Zero Leaked Secrets in Tracked Files
+        run: |
+          if git grep -E "sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{20,}" -- ':!.github/workflows/release-control.yml'; then
+            echo "❌ Potential secret detected in tracked files!"
+            exit 1
+          fi
+          echo "✅ Zero secrets leaked in repository."
+
+      - name: Validate Version Manifest & Cluster Configs
+        run: |
+          python3 -c "
+          import json
+          for p in ['config/dee.config.json', 'config/workers.json', 'config/squad.json', 'config/security_scope.json']:
+              with open(p) as f:
+                  json.load(f)
+          print('✅ All JSON configuration manifests validated.')
+          "

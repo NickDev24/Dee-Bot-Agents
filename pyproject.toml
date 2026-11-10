@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dee-bot-agents"
+version = "4.0.0"
+description = "Dee-Bot-Agents v4.0 Supreme: Ultra-lightweight Autonomous Physical & Multi-Agent System (Ears, Eyes, Voice, 3D HUD & 3-Node Cluster Orchestrator)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+  {name = "Facu (NickDev24)"}
+]
+dependencies = []
+
+[project.scripts]
+dee = "cli.dee_cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["core*", "node_agent*", "cli*"]

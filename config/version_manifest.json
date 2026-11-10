@@ -1,0 +1,26 @@
+{
+  "project": "Dee-Bot-Agents",
+  "version": "4.0.0-supreme",
+  "channel": "stable",
+  "release_date": "2026-11-10",
+  "repository": "https://github.com/NickDev24/Dee-Bot-Agents",
+  "branches": {
+    "public": "main",
+    "control": "control-ops"
+  },
+  "capabilities": {
+    "sensory_ears_alsa": true,
+    "double_clap_wake": true,
+    "voice_biometrics_12d": true,
+    "sensory_eyes_multicam": true,
+    "pgm_2tier_motion_filter": true,
+    "face_intruder_guard": true,
+    "argentine_tts_lipsync_30fps": true,
+    "zero_token_fast_path": true,
+    "smart_dispatcher_pruning": true,
+    "modes_plan_grill_goal": true,
+    "sentinel_supervisor": true,
+    "cluster_route_envelope": true,
+    "adaptive_fps_hud_3d": true
+  }
+}
