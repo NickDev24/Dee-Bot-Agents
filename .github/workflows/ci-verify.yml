@@ -18,8 +18,32 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install headless display and capture tools
+        run: sudo apt-get update && sudo apt-get install -y xvfb x11-utils ffmpeg
+
+      - name: Start local DEE gateways for smoke verification
+        run: |
+          nohup python3 node_agent/gateway.py > /tmp/dee_gateway.log 2>&1 &
+          nohup python3 node_agent/bench.py > /tmp/dee_bench.log 2>&1 &
+          for port in 8730 8731; do
+            ready=0
+            for _ in $(seq 1 50); do
+              if python3 -c "import socket,sys; s=socket.socket(); s.settimeout(0.2); sys.exit(0 if s.connect_ex(('127.0.0.1',$port))==0 else 1)"; then
+                ready=1
+                break
+              fi
+              sleep 0.2
+            done
+            if [ "$ready" -ne 1 ]; then
+              echo "Gateway $port failed to start"; cat /tmp/dee_gateway.log /tmp/dee_bench.log; exit 1
+            fi
+          done
+
+      - name: Run DEE Platform Test Suite (Unit, Integration, Security, E2E, Stress, Benchmarks)
+        run: xvfb-run -a python3 -m unittest discover -s tests -v
+
       - name: Run Dee-Bot-Agents End-to-End Smoke Suite
-        run: python3 scripts/smoke_test.py
+        run: xvfb-run -a python3 scripts/smoke_test.py
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v4

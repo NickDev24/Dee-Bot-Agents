@@ -7,6 +7,7 @@ Fusiona:
 """
 from __future__ import annotations
 
+import inspect
 import json
 import threading
 import time
@@ -111,7 +112,20 @@ class RoutinesEngine:
         t0 = time.time()
         try:
             instr = r["instruction"] if not extra_context else f"{r['instruction']}\nContexto extra: {extra_context}"
-            res = self.runner_fn(instr, forced_agent_id=r["agent_id"]) if self.runner_fn else {"reply": "Ejecutada"}
+            if self.runner_fn:
+                params = inspect.signature(self.runner_fn).parameters
+                accepts_forced_agent = "forced_agent_id" in params or any(
+                    p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values()
+                )
+                res = (
+                    self.runner_fn(instr, forced_agent_id=r["agent_id"])
+                    if accepts_forced_agent
+                    else self.runner_fn(instr)
+                )
+            else:
+                res = {"reply": "Ejecutada"}
+            if not isinstance(res, dict):
+                res = {"reply": str(res)}
             run_record = {
                 "at": round(t0, 1),
                 "status": "ok",

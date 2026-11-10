@@ -1,0 +1,15 @@
+{
+  "name": "health-verifier-test",
+  "version": "1.0.0",
+  "description": "Skill de prueba de integración",
+  "allowed_tools": [
+    "fs_read",
+    "verify_artifact"
+  ],
+  "dependencies": [
+    "python3"
+  ],
+  "entrypoint": "skill_main.py",
+  "test_command": "python3 skills/packages/health-verifier-test/skill_main.py",
+  "installed_at": 1794326327.2925763
+}

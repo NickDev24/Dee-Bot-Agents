@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# DEE-BOT-AGENTS v4.0 PEGASUS SUPREME — ACTIVADOR DE AUTONOMÍA TOTAL 24/7
+# DEE-BOT-AGENTS — DEE (DISTRIBUTED EMERGENT ENGINE) — ACTIVADOR DE AUTONOMÍA TOTAL 24/7
 # Autor: Facu Cercuetti (@NickDev24) · https://facucercuetti.online/blog
 # ==============================================================================
 set -euo pipefail
@@ -18,7 +18,7 @@ mkdir -p "$SYSTEMD_USER_DIR"
 
 cat > "$SYSTEMD_USER_DIR/dee-bot-agents.service" <<EOF
 [Unit]
-Description=Dee-Bot-Agents v4.0 Pegasus Supreme (Cerebro + Gateway :8730 + Workbench :8731 + Autonomia 24/7)
+Description=Dee-Bot-Agents — DEE (Distributed Emergent Engine) (Cerebro + Gateway :8730 + Workbench :8731 + Autonomia 24/7)
 After=network.target sound.target
 
 [Service]
@@ -42,7 +42,7 @@ mkdir -p "$APPS_DIR" "$AUTOSTART_DIR"
 
 DESKTOP_CONTENT="[Desktop Entry]
 Type=Application
-Name=Dee-Bot-Agents v4.0 Pegasus Supreme
+Name=Dee-Bot-Agents — DEE (Distributed Emergent Engine)
 Comment=Sistema Operativo de Agentes Autónomos Multi-Nodo en 3D — por Facu Cercuetti (@NickDev24)
 Exec=$ROOT_DIR/scripts/iniciar_escritorio_electron.sh
 Path=$ROOT_DIR

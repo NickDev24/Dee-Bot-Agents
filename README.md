@@ -1,4 +1,4 @@
-# ⚡ Dee-Bot-Agents (`v4.0 Pegasus Supreme`)
+# ⚡ Dee-Bot-Agents — DEE (Distributed Emergent Engine)
 
 > **Creado por [Facu Cercuetti (@NickDev24)](https://github.com/NickDev24) · Blog Oficial: [facucercuetti.online/blog](https://facucercuetti.online/blog)**  
 > **Sistema Operativo de Agentes Autónomos Físico-Espaciales de Ultra-Bajo Consumo (100% en Español y 0% Simulado)**  
@@ -10,7 +10,7 @@
 [![Escritorio Electron + Three.js](https://img.shields.io/badge/Escritorio-Electron_%2B_Three.js_3D-purple.svg)](desktop/)
 [![Docker Listo](https://img.shields.io/badge/Docker-Listo-blue.svg)](docker-compose.yml)
 
-![Cabina Espacial 3D de Dee-Bot-Agents v4.0 Pegasus Supreme](docs/tutorials/screenshots/01_dee_hud_3d_cockpit.png)
+![Cabina Espacial 3D de Dee-Bot-Agents — DEE](docs/tutorials/screenshots/01_dee_hud_3d_cockpit.png)
 
 ---
 
@@ -25,9 +25,40 @@
 
 ---
 
-## 🌟 ¿Por qué `Dee-Bot-Agents v4.0 Pegasus Supreme` supera a Muse, Grok Bot y Hermes?
+## 🧠 Núcleo DEE — Distributed Emergent Engine
 
-Diseñado por **Facu Cercuetti (`@NickDev24`)**, `Dee-Bot-Agents` convierte un clúster doméstico de bajo consumo (**Intel Pentium B950 / Celeron N4020** sin GPU dedicada) en un **sistema operativo autónomo nivel Pegasus**, capaz de hacer **absolutamente todo lo que un humano hace dentro de una PC y mucho más**, sin nada simulado:
+Además del HUD de Dee, el repositorio incluye un núcleo de agentes verificable en `core/platform/`:
+
+| Módulo | Función implementada |
+|---|---|
+| `storage.py` | SQLite WAL + FTS5 BM25, memoria de 6 niveles, tareas con checkpoints, bus inter-agente, auditoría |
+| `orchestrator.py` | Motor cognitivo, runtime por agente, orquestador multiagente y Escenarios A–F |
+| `security.py` | Supervisor determinista, modos de autonomía, bloqueo de Path Traversal/Shell/Prompt Injection |
+| `models.py` | Proveedores con modalidades declaradas, health checks, fallback y presupuesto de tokens |
+| `tools_mcp.py` | Registro de herramientas, skills verificables y MCP JSON-RPC 2.0 |
+| `computer_loop.py` | Lazo cerrado X11/DOM con observación, acción, reobservación y recibo SHA-256 |
+| `cluster_scheduler.py` | Nodos, heartbeats, selección por recursos, ejecución firmada y consolidación |
+| `benchmark.py` | `dee doctor` y benchmarks medidos, sin cifras preestablecidas |
+
+```bash
+# Verificación real (sin mocks en la suite de plataforma)
+python3 -m unittest discover -s tests -v
+python3 scripts/smoke_test.py
+cd frontend && npm run build
+
+# CLI industrial
+python3 cli/dee_cli.py doctor
+python3 cli/dee_cli.py task run "investigar y contrastar fuentes" --scenario A
+python3 cli/dee_cli.py benchmark
+```
+
+**Estado real y limitaciones**: [`docs/COMPETITIVE_FORENSIC_AUDIT.md`](docs/COMPETITIVE_FORENSIC_AUDIT.md). Los proveedores cloud requieren credenciales; la distribución entre máquinas requiere configurar los hosts de los nodos; el control X11 fue verificado en `DISPLAY=:1` y Wayland/CDP real quedan como pendientes explícitos.
+
+---
+
+## 🌟 ¿Por qué `Dee-Bot-Agents — DEE` supera a Muse, Grok Bot y Hermes?
+
+Diseñado por **Facu Cercuetti (`@NickDev24`)**, `Dee-Bot-Agents` convierte un clúster doméstico de bajo consumo (**Intel Pentium B950 / Celeron N4020** sin GPU dedicada) en un **sistema operativo cognitivo distribuido (DEE)**, capaz de hacer **absolutamente todo lo que un humano hace dentro de una PC y mucho más**, sin nada simulado:
 
 1. **🖱️ Control Físico Nativo de PC en C/X11 (`core/computer_use/human_pc_controller.py`)**:
    - Enlace directo en C (`ctypes`) contra `libX11.so.6` y `libXtst.so.6` (`XInitThreads` + `XQueryPointer` + `XTestFakeMotionEvent` + `XTestFakeButtonEvent` + `XTestFakeKeyEvent`) con latencia **`< 0.1 ms`**.
@@ -79,7 +110,7 @@ cd Dee-Bot-Agents
 ./scripts/iniciar_escritorio_electron.sh
 ```
 
-### Uso de la CLI Táctica Pegasus (`cli/dee_cli.py`) y Herramientas de Gateway (`bin/`)
+### Uso de la CLI de DEE (`cli/dee_cli.py`) y Herramientas de Gateway (`bin/`)
 
 ```bash
 # Estado físico de la PC en X11 (resolución, coordenadas del mouse, ventanas abiertas y volumen)
@@ -89,7 +120,7 @@ python3 cli/dee_cli.py pc clic --button 1
 python3 cli/dee_cli.py pc captura
 
 # Búsqueda instantánea (<3ms, 0 MB RAM) en el motor RAG SQLite FTS5 BM25
-python3 cli/dee_cli.py rag "Pegasus Gateway Facu Cercuetti"
+python3 cli/dee_cli.py rag "Dee Gateway Facu Cercuetti"
 
 # Mapa interactivo DOM (@ref) y cookies mediante el Driver CDP
 python3 cli/dee_cli.py cdp "https://facucercuetti.online/blog"
@@ -116,7 +147,7 @@ curl http://127.0.0.1:8091/health
 
 ---
 
-## 🧪 Suite de Pruebas de Integridad Pegasus (`12/12 Tests Reales OK`)
+## 🧪 Suite de Pruebas de Integridad Dee (`12/12 Tests Reales OK`)
 
 ```bash
 python3 scripts/smoke_test.py

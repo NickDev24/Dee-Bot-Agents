@@ -10,7 +10,6 @@ import {
   CentroOperacionesRealesModal,
   SeccionCentroOperaciones,
 } from './components/CentroOperacionesRealesModal';
-import { Img2ThreejsElectronGuide } from './components/views/Img2ThreejsElectronGuide';
 import { voiceEngine, BackendTTSChunk } from './services/voiceEngine';
 import {
   JarvisAction,
@@ -20,7 +19,6 @@ import {
 import {
   Camera,
   Terminal as TerminalIcon,
-  Box,
   Send,
   Volume2,
   VolumeX,
@@ -37,7 +35,32 @@ import {
   Calendar,
   Puzzle,
   Server,
+  Minus,
+  Square,
+  X as CloseIcon,
+  Pin,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Activity,
 } from 'lucide-react';
+
+declare global {
+  interface Window {
+    deeElectron?: {
+      esElectron: boolean;
+      plataforma: string;
+      versiones?: { electron: string; chrome: string; node: string };
+      minimizarVentana: () => Promise<any>;
+      maximizarVentana: () => Promise<any>;
+      cerrarVentana: () => Promise<any>;
+      alternarSiempreEncima: () => Promise<any>;
+      obtenerInfoElectron: () => Promise<any>;
+      abrirExterno: (url: string) => Promise<any>;
+      abrirRuta: (ruta: string) => Promise<any>;
+      ejecutarComandoNativo: (cmd: string) => Promise<any>;
+    };
+  }
+}
 
 interface SkillItem {
   id: string;
@@ -55,19 +78,19 @@ interface SubagenteInfo {
   nombre: string;
   rol: string;
   color: string;
+  icono: string;
 }
 
 const ESCUADRON_3D: SubagenteInfo[] = [
-  { id: 'dee_prime', nombre: 'Dee Prime', rol: 'Comandante Maestro', color: '#00f0ff' },
-  { id: 'hermes_x11', nombre: 'Hermes X11', rol: 'Control PC & CDP', color: '#ec4899' },
-  { id: 'barto_forge', nombre: 'Barto Forge', rol: 'Docker & Worktrees', color: '#10b981' },
-  { id: 'manager_scout', nombre: 'Manager Scout', rol: 'Red LAN & Telemetría', color: '#f59e0b' },
-  { id: 'sentinel_guard', nombre: 'Sentinel Guard', rol: 'Seguridad & Biometría', color: '#f43f5e' },
-  { id: 'rakazo_archivist', nombre: 'Rakazo Archivist', rol: 'RAG 0-RAM & Agenda', color: '#a855f7' },
+  { id: 'dee_prime', nombre: 'Dee Prime', rol: 'Comandante Maestro', color: '#00f0ff', icono: '⚡' },
+  { id: 'hermes_x11', nombre: 'Hermes X11', rol: 'Control PC & CDP', color: '#ec4899', icono: '🖱️' },
+  { id: 'barto_forge', nombre: 'Barto Forge', rol: 'Docker & Worktrees', color: '#10b981', icono: '🐳' },
+  { id: 'manager_scout', nombre: 'Manager Scout', rol: 'Red LAN & Telemetría', color: '#f59e0b', icono: '📡' },
+  { id: 'sentinel_guard', nombre: 'Sentinel Guard', rol: 'Seguridad & Biometría', color: '#f43f5e', icono: '🛡️' },
+  { id: 'rakazo_archivist', nombre: 'Rakazo Archivist', rol: 'RAG 0-RAM & Agenda', color: '#a855f7', icono: '🧠' },
 ];
 
 const ALL_SKILLS_AND_TOOLS: SkillItem[] = [
-  // Habilidades Primarias (Clúster, Seguridad, RAM, Procesos, Control Físico PC X11)
   {
     id: 'auditar-nodos',
     tier: 'primary',
@@ -118,7 +141,6 @@ const ALL_SKILLS_AND_TOOLS: SkillItem[] = [
     emotion: 'curioso',
     badgeColor: 'border-sky-500/40 hover:border-sky-400 text-sky-300 bg-sky-950/40',
   },
-  // Habilidades Secundarias (Docker, Git, LAN, Logs, RAG 0-RAM, CDP)
   {
     id: 'rag-memoria',
     tier: 'secondary',
@@ -179,7 +201,6 @@ const ALL_SKILLS_AND_TOOLS: SkillItem[] = [
     emotion: 'curioso',
     badgeColor: 'border-teal-500/40 hover:border-teal-400 text-teal-300 bg-teal-950/40',
   },
-  // Habilidades Terciarias (Cámaras, Audio ALSA, Benchmark CPU, Test de Integridad)
   {
     id: 'camara-snapshot',
     tier: 'tertiary',
@@ -220,7 +241,6 @@ const ALL_SKILLS_AND_TOOLS: SkillItem[] = [
     emotion: 'orgullo',
     badgeColor: 'border-emerald-500/40 hover:border-emerald-400 text-emerald-300 bg-emerald-950/40',
   },
-  // Modos Cognitivos (/plan, /grill, /goal)
   {
     id: 'mode-plan',
     tier: 'mode',
@@ -298,10 +318,12 @@ const ETIQUETAS_CAMARA: Record<'default' | 'closeup' | 'overview', string> = {
 };
 
 export default function App() {
-  const [showElectronGuide, setShowElectronGuide] = useState(false);
   const [selectedSkillTier, setSelectedSkillTier] = useState<'all' | 'primary' | 'secondary' | 'tertiary' | 'mode'>('all');
+  const [sidebarAbierta, setSidebarAbierta] = useState<boolean>(true);
+  const [ventanaSiempreEncima, setVentanaSiempreEncima] = useState<boolean>(false);
+  const [versionElectron, setVersionElectron] = useState<string>('38.8.6');
 
-  // Estado del Centro de Operaciones Reales (8 Módulos Pegasus)
+  // Estado del Centro de Operaciones Reales (8 Módulos Reales)
   const [centroOperacionesAbierto, setCentroOperacionesAbierto] = useState(false);
   const [seccionCentroOperaciones, setSeccionCentroOperaciones] =
     useState<SeccionCentroOperaciones>('escuadron');
@@ -326,12 +348,12 @@ export default function App() {
       id: 'boot_welcome',
       ts: new Date().toLocaleTimeString(),
       target: 'facu',
-      cmd: 'dee-bot-agents --estado --escuadron --gateway (v4.0 Pegasus Supreme)',
+      cmd: 'dee-electron-desktop --autonomia-24x7 --gateway (DEE — Distributed Emergent Engine)',
       stdout:
-        '⚡ DEE-BOT-AGENTS v4.0 PEGASUS SUPREME EN LÍNEA\n' +
+        '⚡ DEE-BOT-AGENTS — DEE (DISTRIBUTED EMERGENT ENGINE) — APLICACIÓN NATIVA ELECTRON\n' +
         '• Autor: Facu Cercuetti (@NickDev24) · https://facucercuetti.online/blog\n' +
-        '• Demonios Reales Activos: Cerebro (:8091) · Gateway Archivos (:8730) · Workbench (:8731)\n' +
-        '• Motores Nativos: Control Físico PC X11 (libX11/libXtst) · Driver CDP · RAG SQLite FTS5 0-RAM · Relay JSONL · Git Worktree Forge\n' +
+        '• Demonios Activos: Cerebro (:8091) · Gateway (:8730) · Workbench (:8731) · Autonomía 24/7\n' +
+        '• Motores Nativos: Control Físico PC X11 (libX11/libXtst) · Driver CDP · RAG SQLite FTS5 0-RAM\n' +
         '• Escuadrón 3D: Dee Prime (#00f0ff) + 5 Subagentes Iguales con Colores Distintivos.',
       exitCode: 0,
       durationMs: 0.7,
@@ -339,17 +361,19 @@ export default function App() {
     },
   ]);
 
-  // Estado en Vivo del Backend
+  // Estado en Vivo del Backend y Autonomía 24/7
   const [backendConnected, setBackendConnected] = useState(false);
   const [earsEnabled, setEarsEnabled] = useState(false);
   const [eyesEnabled, setEyesEnabled] = useState(false);
   const [tokensSaved, setTokensSaved] = useState<number>(600);
   const [clusterSummary, setClusterSummary] = useState('facu (Maestro) · Pool :3001 · 3 PCs');
+  const [autonomiaCiclos, setAutonomiaCiclos] = useState<number>(1);
+  const [autonomiaCuraciones, setAutonomiaCuraciones] = useState<number>(0);
 
   // Audio / Voz / Lip-Sync
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [speechText, setSpeechText] = useState(
-    '¡Che Facu! Sistema Pegasus 100% en español activo: Control físico de PC en C/X11, Gateway atómico :8730, Workbench :8731, Driver CDP, RAG 0-RAM y tus 6 agentes 3D listos.'
+    '¡Che Facu! Aplicación nativa Electron estilo GrokBot activa: tenés la barra lateral de tu escuadrón a la izquierda, tus 6 agentes 3D en el centro y la terminal flotante en vivo.'
   );
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -363,6 +387,15 @@ export default function App() {
   const ttsQueueRef = useRef<BackendTTSChunk[]>([]);
   const isPlayingQueueRef = useRef(false);
   const actionResetTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (window.deeElectron?.obtenerInfoElectron) {
+      window.deeElectron.obtenerInfoElectron().then((info) => {
+        if (info?.electronVersion) setVersionElectron(info.electronVersion);
+        if (typeof info?.siempreEncima === 'boolean') setVentanaSiempreEncima(info.siempreEncima);
+      }).catch(() => {});
+    }
+  }, []);
 
   const scheduleReturnToIdle = useCallback((delayMs = 4200) => {
     if (actionResetTimerRef.current) {
@@ -423,13 +456,17 @@ export default function App() {
         if (typeof data?.llm_pool?.tokens_saved === 'number') {
           setTokensSaved(data.llm_pool.tokens_saved);
         }
+        if (data?.autonomy) {
+          setAutonomiaCiclos(data.autonomy.cycles_completed ?? 1);
+          setAutonomiaCuraciones(data.autonomy.heals_performed ?? 0);
+        }
 
         const nodes = data?.cluster?.nodes || {};
         const onlineCount = Object.values(nodes).filter((n: any) => n?.online).length;
         const facuCpu = nodes?.facu?.telemetry?.cpu_pct ?? 0;
         const facuRam = nodes?.facu?.telemetry?.ram_used_gb ?? 0;
         setClusterSummary(
-          `Nodos en Línea: ${onlineCount}/3 · CPU facu: ${facuCpu}% · RAM: ${facuRam}GB`
+          `Nodos: ${onlineCount}/3 · CPU: ${facuCpu}% · RAM: ${facuRam}GB`
         );
       } catch {
         setBackendConnected(false);
@@ -568,6 +605,7 @@ export default function App() {
       setAgenteActivoId(id);
       setAgenteColor(color);
       setAgenteNombre(nombre);
+      setMostrarEscuadron3D(false);
       handleTriggerAction(
         'saludo',
         'orgullo',
@@ -582,7 +620,6 @@ export default function App() {
     setCentroOperacionesAbierto(true);
   }, []);
 
-  // Enviar orden o /skill al cerebro (:8091/api/ask) y desplegar la Terminal en Vivo
   const askDeeBackend = useCallback(
     async (
       promptText: string,
@@ -604,6 +641,7 @@ export default function App() {
           body: JSON.stringify({
             prompt: promptText,
             speak: false,
+            agent_id: agenteActivoId,
           }),
         });
         if (res.ok) {
@@ -632,7 +670,7 @@ export default function App() {
           return;
         }
       } catch {
-        // Respaldo local abajo
+        // Respaldo local
       }
 
       handleTriggerAction(
@@ -641,10 +679,9 @@ export default function App() {
         `Ejecutado en el nodo maestro facu: "${promptText}".`
       );
     },
-    [agenteNombre, handleTriggerAction]
+    [agenteActivoId, agenteNombre, handleTriggerAction]
   );
 
-  // Ejecución directa desde la Terminal Flotante en Vivo ($ comando shell o /skill)
   const handleTerminalExecCommand = useCallback(
     async (cmdOrSkill: string, targetNode: string) => {
       const trimmed = cmdOrSkill.trim();
@@ -717,7 +754,6 @@ export default function App() {
     [askDeeBackend, handleTriggerAction, speakDialogue]
   );
 
-  // Activar/Pausar Oídos Físicos ALSA
   const handleTogglePhysicalEars = async () => {
     const baseUrl = voiceEngine.getBackendBaseUrl();
     const nextState = !earsEnabled;
@@ -740,7 +776,6 @@ export default function App() {
     }
   };
 
-  // Activar/Pausar Ojos Multi-Cámara
   const handleTogglePhysicalEyes = async () => {
     const baseUrl = voiceEngine.getBackendBaseUrl();
     const nextState = !eyesEnabled;
@@ -763,7 +798,6 @@ export default function App() {
     }
   };
 
-  // Parada de Emergencia ("Dee, alto")
   const handleKillSwitch = async () => {
     const baseUrl = voiceEngine.getBackendBaseUrl();
     voiceEngine.stopSpeaking();
@@ -775,7 +809,7 @@ export default function App() {
       await fetch(`${baseUrl}/api/interrupt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: 'Parada de Emergencia desde HUD' }),
+        body: JSON.stringify({ reason: 'Parada de Emergencia desde HUD Electron' }),
       });
     } catch {
       // ignorar
@@ -826,398 +860,456 @@ export default function App() {
   const actionMeta = ACTION_LABELS[currentAction] || ACTION_LABELS.idle;
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-[#02050b] text-slate-100 font-sans select-none flex flex-col justify-between">
-      {/* 1. ESCENARIO 3D EN TIEMPO REAL (DEE + 5 SUBAGENTES CON COLORES DISTINTIVOS) */}
-      <div className="absolute inset-0 z-0">
-        <CyberBirdCanvas
-          currentAction={currentAction}
-          currentEmotion={currentEmotion}
-          lipSyncData={lipSyncData}
-          cameraPreset={cameraPreset}
-          agentColor={agenteColor}
-          showSquadFormation={mostrarEscuadron3D}
-        />
+    <div className="relative w-screen h-screen overflow-hidden bg-[#02050b] text-slate-100 font-sans select-none flex flex-col">
+      {/* ========================================================================== */}
+      {/* 1. BARRA DE TÍTULO NATIVA ELECTRON (Frameless Window Drag + Controles OS) */}
+      {/* ========================================================================== */}
+      <div
+        className="relative z-40 h-9 w-full bg-[#040812] border-b border-slate-800/90 flex items-center justify-between px-3 shrink-0"
+        style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+      >
+        <div className="flex items-center gap-2.5" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+          <button
+            onClick={() => setSidebarAbierta(!sidebarAbierta)}
+            className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-cyan-300 transition-colors"
+            title={sidebarAbierta ? 'Ocultar barra lateral de GrokBot' : 'Mostrar barra lateral de GrokBot'}
+          >
+            {sidebarAbierta ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
+          </button>
+          <span className="text-xs font-mono font-bold text-slate-200 flex items-center gap-1.5">
+            <span className="text-cyan-400">⚡</span>
+            <span>DEE-BOT-AGENTS</span>
+            <span className="px-1.5 py-0.5 rounded bg-cyan-500/15 border border-cyan-500/40 text-[10px] text-cyan-300">
+              ELECTRON NATIVO v{versionElectron}
+            </span>
+          </span>
+          <span className="hidden md:inline text-[10px] font-mono text-slate-400">
+            · {clusterSummary} · <span className="text-emerald-400">{tokensSaved} tokens ahorrados</span>
+          </span>
+        </div>
+
+        {/* Controles Nativos de Ventana Electron */}
+        <div className="flex items-center gap-1" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+          <button
+            onClick={() => {
+              if (window.deeElectron?.abrirExterno) {
+                window.deeElectron.abrirExterno('https://facucercuetti.online/blog');
+              } else {
+                window.open('https://facucercuetti.online/blog', '_blank');
+              }
+            }}
+            className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 mr-2 rounded-md bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-[10px] font-mono text-cyan-300"
+          >
+            <span>Facu Cercuetti (@NickDev24)</span>
+            <ExternalLink className="w-2.5 h-2.5" />
+          </button>
+
+          <button
+            onClick={async () => {
+              if (window.deeElectron?.alternarSiempreEncima) {
+                const res = await window.deeElectron.alternarSiempreEncima();
+                setVentanaSiempreEncima(Boolean(res?.siempreEncima));
+              } else {
+                setVentanaSiempreEncima(!ventanaSiempreEncima);
+              }
+            }}
+            className={`p-1.5 rounded-lg text-xs transition-colors ${
+              ventanaSiempreEncima
+                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                : 'hover:bg-slate-800 text-slate-400 hover:text-slate-200'
+            }`}
+            title="Fijar ventana de Electron siempre encima del escritorio"
+          >
+            <Pin className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            onClick={() => window.deeElectron?.minimizarVentana?.()}
+            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+            title="Minimizar ventana Electron"
+          >
+            <Minus className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            onClick={() => window.deeElectron?.maximizarVentana?.()}
+            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+            title="Maximizar / Restaurar ventana Electron"
+          >
+            <Square className="w-3 h-3" />
+          </button>
+
+          <button
+            onClick={() => window.deeElectron?.cerrarVentana?.()}
+            className="p-1.5 rounded-lg hover:bg-rose-600 text-slate-400 hover:text-white transition-colors"
+            title="Cerrar ventana Electron (los demonios 24/7 siguen activos)"
+          >
+            <CloseIcon className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
-      {/* 2. CABECERA DE COMANDO SUPERIOR ESTILO GROK-BOT / META-MUSE (100% ESPAÑOL) */}
-      <header className="relative z-20 flex flex-col gap-2 px-5 pt-3 pointer-events-none">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* Izquierda: Identidad + Autor + Estado Cinemático en Tiempo Real */}
-          <div className="flex items-center gap-3 pointer-events-auto">
-            <div className="flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-[#050914]/90 border border-slate-800/90 backdrop-blur-xl shadow-lg">
-              <div
-                className="w-8 h-8 rounded-xl border flex items-center justify-center font-bold text-sm shadow-lg"
-                style={{
-                  borderColor: agenteColor,
-                  backgroundColor: `${agenteColor}22`,
-                  color: agenteColor,
-                }}
-              >
-                ⚡
-              </div>
+      {/* ========================================================================== */}
+      {/* 2. CUERPO PRINCIPAL DE LA APP ELECTRON (Sidebar GrokBot + Estudio 3D)     */}
+      {/* ========================================================================== */}
+      <div className="relative flex-1 flex overflow-hidden">
+        {/* BARRA LATERAL IZQUIERDA ESTILO GROKBOT (Escuadrón 3D + Módulos Nativos) */}
+        {sidebarAbierta && (
+          <aside className="relative z-30 w-64 h-full bg-[#050914]/95 border-r border-slate-800/90 backdrop-blur-2xl flex flex-col justify-between p-3 shrink-0 overflow-y-auto">
+            <div className="space-y-4">
+              {/* Sección 1: Escuadrón de Agentes 3D (Mismo Personaje, Distinto Color) */}
               <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-xs font-bold tracking-wider text-slate-100 font-mono">
-                    DEE-BOT-AGENTS <span style={{ color: agenteColor }}>v4.0 PEGASUS</span>
-                  </h1>
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      backendConnected ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'
-                    }`}
-                  />
-                  <span
-                    className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border"
-                    style={{
-                      borderColor: `${agenteColor}66`,
-                      backgroundColor: `${agenteColor}18`,
-                      color: agenteColor,
-                    }}
-                  >
-                    {agenteNombre}
+                <div className="flex items-center justify-between px-1 mb-2">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                    Escuadrón 3D (Estilo GrokBot)
                   </span>
-                  <a
-                    href="https://facucercuetti.online/blog"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="hidden lg:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-900 border border-slate-700/80 text-[10px] font-mono text-cyan-300 hover:border-cyan-400 transition-colors"
-                  >
-                    <span>Facu Cercuetti (@NickDev24)</span>
-                    <ExternalLink className="w-2.5 h-2.5" />
-                  </a>
+                  <span className="text-[10px] font-mono text-emerald-400">6/6 activos</span>
                 </div>
-                <p className="text-[10px] text-slate-400 font-mono">
-                  {clusterSummary} · <span className="text-emerald-400">{tokensSaved} tokens ahorrados</span>
-                </p>
+
+                {/* Botón Sala Grupal: Despliega los 6 Agentes 3D en Formación */}
+                <button
+                  onClick={() => setMostrarEscuadron3D(!mostrarEscuadron3D)}
+                  className={`w-full mb-2 px-2.5 py-2 rounded-xl border text-left font-mono text-xs flex items-center justify-between transition-all ${
+                    mostrarEscuadron3D
+                      ? 'bg-fuchsia-500/20 border-fuchsia-400 text-fuchsia-200 shadow-[0_0_15px_rgba(217,70,239,0.3)]'
+                      : 'bg-slate-900/80 border-slate-800 text-slate-300 hover:border-slate-700'
+                  }`}
+                >
+                  <span className="flex items-center gap-2 font-bold">
+                    <Users className="w-4 h-4 text-fuchsia-400" />
+                    <span>Formación 6 Agentes 3D</span>
+                  </span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-fuchsia-950 text-fuchsia-300">
+                    {mostrarEscuadron3D ? 'ACTIVO' : 'VER'}
+                  </span>
+                </button>
+
+                {/* Lista de los 6 Agentes con sus Colores Distintivos */}
+                <div className="space-y-1">
+                  {ESCUADRON_3D.map((ag) => {
+                    const esActivo = agenteActivoId === ag.id && !mostrarEscuadron3D;
+                    return (
+                      <button
+                        key={ag.id}
+                        onClick={() => seleccionarSubagente(ag.id, ag.color, ag.nombre)}
+                        className={`w-full px-2.5 py-1.5 rounded-xl border text-left font-mono transition-all flex items-center justify-between ${
+                          esActivo ? 'shadow-md' : 'opacity-80 hover:opacity-100'
+                        }`}
+                        style={{
+                          borderColor: esActivo ? ag.color : '#1e293b',
+                          backgroundColor: esActivo ? `${ag.color}20` : '#090f1d',
+                        }}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: ag.color, boxShadow: `0 0 8px ${ag.color}` }}
+                          />
+                          <div className="truncate">
+                            <div className="text-xs font-bold text-slate-100 truncate">{ag.nombre}</div>
+                            <div className="text-[10px] text-slate-400 truncate">{ag.rol}</div>
+                          </div>
+                        </div>
+                        <span className="text-xs">{ag.icono}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Sección 2: Módulos Reales del Sistema Operativo */}
+              <div>
+                <div className="px-1 mb-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                  Sistemas Reales Dee
+                </div>
+                <div className="space-y-1">
+                  {[
+                    { id: 'control_pc' as SeccionCentroOperaciones, label: 'Control Físico PC (X11)', icon: <MousePointer className="w-3.5 h-3.5 text-pink-400" /> },
+                    { id: 'navegador' as SeccionCentroOperaciones, label: 'Navegador & Driver CDP', icon: <Globe className="w-3.5 h-3.5 text-cyan-400" /> },
+                    { id: 'programas' as SeccionCentroOperaciones, label: 'Programas & Procesos Linux', icon: <Cpu className="w-3.5 h-3.5 text-emerald-400" /> },
+                    { id: 'agenda' as SeccionCentroOperaciones, label: 'Agenda & Rutinas Cron', icon: <Calendar className="w-3.5 h-3.5 text-amber-400" /> },
+                    { id: 'skills_rag' as SeccionCentroOperaciones, label: 'Skills & Motor RAG 0-RAM', icon: <Sparkles className="w-3.5 h-3.5 text-violet-400" /> },
+                    { id: 'plugins_relay' as SeccionCentroOperaciones, label: 'Gateway :8730 & Relay', icon: <Puzzle className="w-3.5 h-3.5 text-sky-400" /> },
+                    { id: 'proveedores_config' as SeccionCentroOperaciones, label: 'Proveedores IA & Ajustes', icon: <Server className="w-3.5 h-3.5 text-rose-400" /> },
+                  ].map((mod) => (
+                    <button
+                      key={mod.id}
+                      onClick={() => abrirCentroOperaciones(mod.id)}
+                      className="w-full px-2.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/40 text-xs font-mono text-slate-200 flex items-center gap-2 transition-all"
+                    >
+                      {mod.icon}
+                      <span className="truncate">{mod.label}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Indicador de Cinemática 3D en Vivo */}
+            {/* Pie de la Barra Lateral: Estado de Autonomía 24/7 */}
+            <div className="pt-2 border-t border-slate-800/90 space-y-1.5">
+              <div className="px-2.5 py-2 rounded-xl bg-emerald-950/30 border border-emerald-500/30 font-mono text-[10px] text-emerald-300">
+                <div className="flex items-center justify-between font-bold">
+                  <span className="flex items-center gap-1.5">
+                    <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                    <span>AUTONOMÍA 24/7 ACTIVA</span>
+                  </span>
+                </div>
+                <div className="text-slate-400 mt-0.5">
+                  Ciclos: {autonomiaCiclos} · Auto-Curaciones: {autonomiaCuraciones}
+                </div>
+              </div>
+            </div>
+          </aside>
+        )}
+
+        {/* ÁREA CENTRAL: ESCENARIO 3D + CONTROLES SUPERIORES + TERMINAL FLOTANTE + CONSOLA */}
+        <main className="relative flex-1 h-full flex flex-col justify-between overflow-hidden">
+          {/* ESCENARIO 3D EN TIEMPO REAL */}
+          <div className="absolute inset-0 z-0">
+            <CyberBirdCanvas
+              currentAction={currentAction}
+              currentEmotion={currentEmotion}
+              lipSyncData={lipSyncData}
+              cameraPreset={cameraPreset}
+              agentColor={agenteColor}
+              showSquadFormation={mostrarEscuadron3D}
+            />
+          </div>
+
+          {/* BARRA FLOTANTE SUPERIOR DEL ESCENARIO 3D */}
+          <div className="relative z-20 flex flex-wrap items-center justify-between gap-2 px-4 pt-3 pointer-events-none">
             <div
-              className={`hidden 2xl:flex items-center gap-2.5 px-3.5 py-2 rounded-2xl border backdrop-blur-xl shadow-lg transition-all ${actionMeta.badge}`}
+              className={`flex items-center gap-2.5 px-3.5 py-2 rounded-2xl border backdrop-blur-xl shadow-lg pointer-events-auto ${actionMeta.badge}`}
             >
               <Sparkles className="w-4 h-4 shrink-0 animate-pulse" />
               <div>
                 <div className="text-[10px] font-mono font-bold tracking-wider">
-                  {actionMeta.title}
+                  {agenteNombre.toUpperCase()} // {actionMeta.title}
                 </div>
                 <div className="text-[10px] font-mono opacity-80">{actionMeta.subtitle}</div>
               </div>
             </div>
-          </div>
 
-          {/* Derecha: Sensores Físicos, Terminal Movible y Parada de Emergencia */}
-          <div className="flex items-center gap-1.5 pointer-events-auto bg-[#050914]/90 backdrop-blur-xl border border-slate-800/90 p-1.5 rounded-2xl shadow-xl">
-            {/* Botón de Formación Escuadrón 3D (6 Agentes Iguales con Distinto Color) */}
-            <button
-              onClick={() => setMostrarEscuadron3D(!mostrarEscuadron3D)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 transition-all ${
-                mostrarEscuadron3D
-                  ? 'bg-fuchsia-500 text-slate-950 shadow-[0_0_18px_rgba(217,70,239,0.45)]'
-                  : 'bg-slate-900 text-fuchsia-300 border border-fuchsia-500/40 hover:bg-slate-800'
-              }`}
-              title="Desplegar / Ocultar Formación 3D Completa (Dee + 5 Subagentes con Colores Distintivos)"
-            >
-              <Users className="w-3.5 h-3.5" />
-              <span>{mostrarEscuadron3D ? 'Escuadrón 3D: ACTIVO' : 'Escuadrón 3D (6)'}</span>
-            </button>
-
-            {/* Botón de Terminal en Vivo Movible */}
-            <button
-              onClick={() => {
-                if (!terminalOpen) {
-                  setTerminalOpen(true);
-                  setTerminalMinimized(false);
-                } else {
-                  setTerminalMinimized(!terminalMinimized);
-                }
-              }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 transition-all ${
-                terminalOpen && !terminalMinimized
-                  ? 'bg-cyan-500 text-slate-950 shadow-[0_0_18px_rgba(0,240,255,0.4)]'
-                  : 'bg-slate-900 text-cyan-300 border border-cyan-500/40 hover:bg-slate-800'
-              }`}
-              title="Desplegar / Mover Terminal Conectada en Vivo"
-            >
-              <TerminalIcon className="w-3.5 h-3.5" />
-              <span>Terminal en Vivo ({terminalEntries.length})</span>
-            </button>
-
-            {/* Oídos Físicos ALSA */}
-            <button
-              onClick={handleTogglePhysicalEars}
-              className={`px-2.5 py-1.5 rounded-xl text-xs font-mono font-medium flex items-center gap-1.5 transition-colors ${
-                earsEnabled
-                  ? 'bg-emerald-950/90 text-emerald-300 border border-emerald-500/50'
-                  : 'hover:bg-slate-800 text-slate-400 hover:text-cyan-300'
-              }`}
-              title="Activar/Pausar Oídos Físicos ALSA (Doble Aplauso + Biometría Vocal)"
-            >
-              <Ear className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">{earsEnabled ? 'Oídos ACTIVOS' : 'Oídos'}</span>
-            </button>
-
-            {/* Ojos Multi-Cámara */}
-            <button
-              onClick={handleTogglePhysicalEyes}
-              className={`px-2.5 py-1.5 rounded-xl text-xs font-mono font-medium flex items-center gap-1.5 transition-colors ${
-                eyesEnabled
-                  ? 'bg-cyan-950/90 text-cyan-300 border border-cyan-500/50'
-                  : 'hover:bg-slate-800 text-slate-400 hover:text-cyan-300'
-              }`}
-              title="Activar/Pausar Ojos Multi-Cámara (Reconocimiento de Facu e Intrusos)"
-            >
-              <Eye className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">{eyesEnabled ? 'Ojos ACTIVOS' : 'Ojos'}</span>
-            </button>
-
-            {/* Encuadre de Cámara 3D */}
-            <button
-              onClick={cycleCameraPreset}
-              className="px-2.5 py-1.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-cyan-300 text-xs font-mono font-medium flex items-center gap-1.5 transition-colors"
-              title="Cambiar encuadre 3D de Dee (Estándar / Primer Plano / Panorámica)"
-            >
-              <Camera className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="hidden sm:inline">{ETIQUETAS_CAMARA[cameraPreset]}</span>
-            </button>
-
-            {/* Parada de Emergencia */}
-            <button
-              onClick={handleKillSwitch}
-              className="p-1.5 rounded-xl hover:bg-rose-950/80 text-rose-400 hover:text-rose-300 transition-colors"
-              title="Parada de Emergencia ('Dee, alto')"
-            >
-              <ShieldAlert className="w-4 h-4" />
-            </button>
-
-            {/* Silenciar / Activar Voz */}
-            <button
-              onClick={() => {
-                if (isSpeaking) {
-                  voiceEngine.stopSpeaking();
-                  setIsSpeaking(false);
-                }
-                setIsAudioMuted(!isAudioMuted);
-              }}
-              className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-cyan-300 transition-colors"
-              title={isAudioMuted ? 'Activar voz' : 'Silenciar voz'}
-            >
-              {isAudioMuted ? (
-                <VolumeX className="w-4 h-4 text-rose-400" />
-              ) : (
-                <Volume2 className="w-4 h-4 text-cyan-400" />
-              )}
-            </button>
-
-            {/* Guía Técnica de Arquitectura */}
-            <button
-              onClick={() => setShowElectronGuide(true)}
-              className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-cyan-300 transition-colors"
-              title="Guía Técnica de Arquitectura Electron y 3D"
-            >
-              <Box className="w-4 h-4 text-slate-400" />
-            </button>
-          </div>
-        </div>
-
-        {/* Segunda Fila Superior: Barra de Módulos Reales Pegasus + Selector Rápido de Subagentes por Color */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pointer-events-auto">
-          {/* 8 Módulos Reales del Centro de Operaciones */}
-          <div className="flex items-center gap-1.5 flex-wrap bg-[#050914]/85 border border-slate-800/90 backdrop-blur-xl px-2.5 py-1.5 rounded-2xl shadow-lg">
-            <span className="text-[10px] font-mono font-bold text-cyan-400 uppercase px-1">
-              Módulos Reales:
-            </span>
-            {[
-              { id: 'escuadron' as SeccionCentroOperaciones, label: 'Escuadrón 3D', icon: <Users className="w-3 h-3" /> },
-              { id: 'control_pc' as SeccionCentroOperaciones, label: 'Control PC X11', icon: <MousePointer className="w-3 h-3" /> },
-              { id: 'navegador' as SeccionCentroOperaciones, label: 'Navegador CDP', icon: <Globe className="w-3 h-3" /> },
-              { id: 'programas' as SeccionCentroOperaciones, label: 'Programas Linux', icon: <Cpu className="w-3 h-3" /> },
-              { id: 'agenda' as SeccionCentroOperaciones, label: 'Agenda & Cron', icon: <Calendar className="w-3 h-3" /> },
-              { id: 'skills_rag' as SeccionCentroOperaciones, label: 'Skills & RAG 0-RAM', icon: <Sparkles className="w-3 h-3" /> },
-              { id: 'plugins_relay' as SeccionCentroOperaciones, label: 'Gateway & Relay', icon: <Puzzle className="w-3 h-3" /> },
-              { id: 'proveedores_config' as SeccionCentroOperaciones, label: 'Proveedores & Ajustes', icon: <Server className="w-3 h-3" /> },
-            ].map((mod) => (
+            {/* Sensores Físicos, Terminal en Vivo y Parada de Emergencia */}
+            <div className="flex items-center gap-1.5 pointer-events-auto bg-[#050914]/90 backdrop-blur-xl border border-slate-800/90 p-1.5 rounded-2xl shadow-xl">
               <button
-                key={mod.id}
-                onClick={() => abrirCentroOperaciones(mod.id)}
-                className="px-2.5 py-1 rounded-xl bg-slate-900/90 hover:bg-cyan-950/80 border border-slate-700/80 hover:border-cyan-400/60 text-[11px] font-mono text-slate-200 hover:text-cyan-300 flex items-center gap-1.5 transition-all"
+                onClick={() => {
+                  if (!terminalOpen) {
+                    setTerminalOpen(true);
+                    setTerminalMinimized(false);
+                  } else {
+                    setTerminalMinimized(!terminalMinimized);
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 transition-all ${
+                  terminalOpen && !terminalMinimized
+                    ? 'bg-cyan-500 text-slate-950 shadow-[0_0_18px_rgba(0,240,255,0.4)]'
+                    : 'bg-slate-900 text-cyan-300 border border-cyan-500/40 hover:bg-slate-800'
+                }`}
+                title="Desplegar / Mover Terminal Conectada en Vivo"
               >
-                {mod.icon}
-                <span>{mod.label}</span>
+                <TerminalIcon className="w-3.5 h-3.5" />
+                <span>Terminal en Vivo ({terminalEntries.length})</span>
               </button>
-            ))}
+
+              <button
+                onClick={handleTogglePhysicalEars}
+                className={`px-2.5 py-1.5 rounded-xl text-xs font-mono font-medium flex items-center gap-1.5 transition-colors ${
+                  earsEnabled
+                    ? 'bg-emerald-950/90 text-emerald-300 border border-emerald-500/50'
+                    : 'hover:bg-slate-800 text-slate-400 hover:text-cyan-300'
+                }`}
+                title="Activar/Pausar Oídos Físicos ALSA (Doble Aplauso + Biometría Vocal)"
+              >
+                <Ear className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">{earsEnabled ? 'Oídos ACTIVOS' : 'Oídos'}</span>
+              </button>
+
+              <button
+                onClick={handleTogglePhysicalEyes}
+                className={`px-2.5 py-1.5 rounded-xl text-xs font-mono font-medium flex items-center gap-1.5 transition-colors ${
+                  eyesEnabled
+                    ? 'bg-cyan-950/90 text-cyan-300 border border-cyan-500/50'
+                    : 'hover:bg-slate-800 text-slate-400 hover:text-cyan-300'
+                }`}
+                title="Activar/Pausar Ojos Multi-Cámara (Reconocimiento de Facu e Intrusos)"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">{eyesEnabled ? 'Ojos ACTIVOS' : 'Ojos'}</span>
+              </button>
+
+              <button
+                onClick={cycleCameraPreset}
+                className="px-2.5 py-1.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-cyan-300 text-xs font-mono font-medium flex items-center gap-1.5 transition-colors"
+                title="Cambiar encuadre 3D de Dee (Estándar / Primer Plano / Panorámica)"
+              >
+                <Camera className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="hidden sm:inline">{ETIQUETAS_CAMARA[cameraPreset]}</span>
+              </button>
+
+              <button
+                onClick={handleKillSwitch}
+                className="p-1.5 rounded-xl hover:bg-rose-950/80 text-rose-400 hover:text-rose-300 transition-colors"
+                title="Parada de Emergencia ('Dee, alto')"
+              >
+                <ShieldAlert className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={() => {
+                  if (isSpeaking) {
+                    voiceEngine.stopSpeaking();
+                    setIsSpeaking(false);
+                  }
+                  setIsAudioMuted(!isAudioMuted);
+                }}
+                className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-cyan-300 transition-colors"
+                title={isAudioMuted ? 'Activar voz' : 'Silenciar voz'}
+              >
+                {isAudioMuted ? (
+                  <VolumeX className="w-4 h-4 text-rose-400" />
+                ) : (
+                  <Volume2 className="w-4 h-4 text-cyan-400" />
+                )}
+              </button>
+            </div>
           </div>
 
-          {/* Selector Rápido de Subagentes 3D Iguales con Distintos Colores */}
-          <div className="flex items-center gap-1.5 bg-[#050914]/85 border border-slate-800/90 backdrop-blur-xl px-2.5 py-1.5 rounded-2xl shadow-lg">
-            <span className="text-[10px] font-mono text-slate-400 hidden sm:inline">Agente Activo:</span>
-            {ESCUADRON_3D.map((ag) => {
-              const activo = agenteActivoId === ag.id;
-              return (
-                <button
-                  key={ag.id}
-                  onClick={() => seleccionarSubagente(ag.id, ag.color, ag.nombre)}
-                  className={`px-2 py-1 rounded-xl text-[10px] font-mono font-bold flex items-center gap-1.5 border transition-all ${
-                    activo ? 'scale-105 shadow-md' : 'opacity-75 hover:opacity-100'
-                  }`}
-                  style={{
-                    borderColor: activo ? ag.color : `${ag.color}44`,
-                    backgroundColor: activo ? `${ag.color}28` : '#0a1020',
-                    color: ag.color,
-                  }}
-                  title={`${ag.nombre} — ${ag.rol}`}
-                >
-                  <span
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: ag.color }}
-                  />
-                  <span className="hidden md:inline">{ag.nombre}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </header>
-
-      {/* 3. TERMINAL FLOTANTE EN VIVO MOVIBLE (Se despliega automáticamente con cualquier tarea) */}
-      <DraggableLiveTerminal
-        isOpen={terminalOpen}
-        isMinimized={terminalMinimized}
-        onClose={() => setTerminalOpen(false)}
-        onToggleMinimize={() => setTerminalMinimized(!terminalMinimized)}
-        entries={terminalEntries}
-        onClear={() => setTerminalEntries([])}
-        onExecuteCommand={handleTerminalExecCommand}
-        activeTaskLabel={activeTaskLabel}
-      />
-
-      {/* 4. ESPACIO CENTRAL LIMPIO ENFOCADO EN EL PERSONAJE 3D */}
-      <div className="flex-1 pointer-events-none" />
-
-      {/* 5. CONSOLA INFERIOR DE COMANDO Y ARSENAL DE HABILIDADES (100% ESPAÑOL) */}
-      <footer className="relative z-20 flex flex-col items-center justify-end pb-4 px-4 pointer-events-none">
-        {/* Píldora de Subtítulos con Sincronización Labial */}
-        <div className="w-full max-w-xl mb-2.5">
-          <MuseSubtitlePill
-            text={speechText}
-            isSpeaking={isSpeaking}
-            emotion={currentEmotion}
-            onReplayVoice={() => speakDialogue(speechText, currentEmotion)}
+          {/* TERMINAL FLOTANTE EN VIVO MOVIBLE */}
+          <DraggableLiveTerminal
+            isOpen={terminalOpen}
+            isMinimized={terminalMinimized}
+            onClose={() => setTerminalOpen(false)}
+            onToggleMinimize={() => setTerminalMinimized(!terminalMinimized)}
+            entries={terminalEntries}
+            onClear={() => setTerminalEntries([])}
+            onExecuteCommand={handleTerminalExecCommand}
+            activeTaskLabel={activeTaskLabel}
           />
-        </div>
 
-        {/* Consola Unificada de Órdenes + Habilidades */}
-        <div className="w-full max-w-4xl rounded-3xl bg-[#050914]/90 border border-slate-800/90 backdrop-blur-2xl p-3 shadow-[0_15px_60px_rgba(0,0,0,0.85)] pointer-events-auto space-y-2.5">
-          <div className="flex flex-col md:flex-row items-center gap-2.5">
-            {/* Orbe Acústico de Voz */}
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="scale-75 -my-3">
-                <MuseVoiceOrb
-                  isListening={isListening}
-                  isSpeaking={isSpeaking}
-                  lipSyncData={lipSyncData}
-                  onToggleMic={handleToggleMic}
-                  statusLabel=""
-                />
-              </div>
+          <div className="flex-1 pointer-events-none" />
+
+          {/* CONSOLA INFERIOR DE COMANDO Y ARSENAL DE HABILIDADES */}
+          <footer className="relative z-20 flex flex-col items-center justify-end pb-3 px-4 pointer-events-none">
+            <div className="w-full max-w-xl mb-2">
+              <MuseSubtitlePill
+                text={speechText}
+                isSpeaking={isSpeaking}
+                emotion={currentEmotion}
+                onReplayVoice={() => speakDialogue(speechText, currentEmotion)}
+              />
             </div>
 
-            {/* Entrada de Órdenes en Español */}
-            <form onSubmit={handleSubmitPrompt} className="flex-1 w-full flex items-center gap-2">
-              <div className="flex-1 flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-slate-950/90 border border-slate-800 focus-within:border-cyan-400/70 transition-colors">
-                <span className="text-cyan-400 font-mono text-xs font-bold">{'>'}</span>
-                <input
-                  type="text"
-                  value={promptInput}
-                  onChange={(e) => setPromptInput(e.target.value)}
-                  placeholder="Hablale a Dee o escribí una orden, /control-pc-x11, /rag-memoria, /cdp-mapa, /plan, /grill, /goal..."
-                  className="flex-1 bg-transparent text-xs text-slate-100 placeholder-slate-500 font-mono focus:outline-none"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={!promptInput.trim()}
-                className="px-4 py-2 rounded-2xl bg-cyan-500 hover:bg-cyan-400 disabled:opacity-30 text-slate-950 font-mono font-bold text-xs flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(0,240,255,0.3)]"
-              >
-                <Send className="w-3.5 h-3.5" />
-                <span>Ejecutar</span>
-              </button>
-            </form>
+            <div className="w-full max-w-4xl rounded-3xl bg-[#050914]/90 border border-slate-800/90 backdrop-blur-2xl p-3 shadow-[0_15px_60px_rgba(0,0,0,0.85)] pointer-events-auto space-y-2.5">
+              <div className="flex flex-col md:flex-row items-center gap-2.5">
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="scale-75 -my-3">
+                    <MuseVoiceOrb
+                      isListening={isListening}
+                      isSpeaking={isSpeaking}
+                      lipSyncData={lipSyncData}
+                      onToggleMic={handleToggleMic}
+                      statusLabel=""
+                    />
+                  </div>
+                </div>
 
-            {/* Botones de Poses Cinemáticas en Tiempo Real */}
-            <div className="flex items-center gap-1 shrink-0">
-              {[
-                { label: '👋', action: 'saludo' as JarvisAction, emo: 'curioso' as JarvisEmotion, msg: '¡Hola Facu! Listo para romperla.' },
-                { label: '⌨️', action: 'trabajando' as JarvisAction, emo: 'curioso' as JarvisEmotion, msg: 'Desplegando teclado láser holográfico y terminal en vivo.' },
-                { label: '🔮', action: 'manipular_datos' as JarvisAction, emo: 'curioso' as JarvisEmotion, msg: 'Manipulando orbe cuántico de telemetría y memoria RAG 0-RAM.' },
-                { label: '⚔️', action: 'explicacion' as JarvisAction, emo: 'combate' as JarvisEmotion, msg: 'Postura de defensa Sentinel activada.' },
-                { label: '🏆', action: 'celebracion_salto' as JarvisAction, emo: 'orgullo' as JarvisEmotion, msg: '¡Salto de victoria 360 grados sin errores!' },
-              ].map((pose) => (
-                <button
-                  key={pose.action}
-                  onClick={() => handleTriggerAction(pose.action, pose.emo, pose.msg)}
-                  className={`px-2 py-1.5 rounded-xl border text-xs font-mono transition-all ${
-                    currentAction === pose.action
-                      ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200 scale-105'
-                      : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:text-white'
-                  }`}
-                  title={`Animación en tiempo real: ${pose.action}`}
-                >
-                  {pose.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Fila Inferior: Arsenal de Habilidades Primarias, Secundarias, Terciarias y Modos */}
-          <div className="flex flex-col gap-2 pt-1 border-t border-slate-800/80">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-1.5">
-                <Wrench className="w-3.5 h-3.5 text-cyan-400" />
-                <span className="text-[10px] font-mono font-bold tracking-wider text-slate-400 uppercase">
-                  Arsenal de Habilidades Reales (Despliega Terminal + Animación 3D):
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                {[
-                  { id: 'all', label: `Todas (${ALL_SKILLS_AND_TOOLS.length})` },
-                  { id: 'primary', label: 'Primarias' },
-                  { id: 'secondary', label: 'Secundarias' },
-                  { id: 'tertiary', label: 'Terciarias' },
-                  { id: 'mode', label: 'Modos /plan /grill /goal' },
-                ].map((tab) => (
+                <form onSubmit={handleSubmitPrompt} className="flex-1 w-full flex items-center gap-2">
+                  <div className="flex-1 flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-slate-950/90 border border-slate-800 focus-within:border-cyan-400/70 transition-colors">
+                    <span className="text-cyan-400 font-mono text-xs font-bold">{'>'}</span>
+                    <input
+                      type="text"
+                      value={promptInput}
+                      onChange={(e) => setPromptInput(e.target.value)}
+                      placeholder={`Ordenar a ${agenteNombre} (/control-pc-x11, /rag-memoria, /cdp-mapa, /plan, /grill, /goal)...`}
+                      className="flex-1 bg-transparent text-xs text-slate-100 placeholder-slate-500 font-mono focus:outline-none"
+                    />
+                  </div>
                   <button
-                    key={tab.id}
-                    onClick={() => setSelectedSkillTier(tab.id as any)}
-                    className={`px-2 py-0.5 rounded-lg text-[10px] font-mono transition-colors ${
-                      selectedSkillTier === tab.id
-                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 font-bold'
-                        : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-                    }`}
+                    type="submit"
+                    disabled={!promptInput.trim()}
+                    className="px-4 py-2 rounded-2xl bg-cyan-500 hover:bg-cyan-400 disabled:opacity-30 text-slate-950 font-mono font-bold text-xs flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(0,240,255,0.3)]"
                   >
-                    {tab.label}
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Ejecutar</span>
                   </button>
-                ))}
+                </form>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  {[
+                    { label: '👋', action: 'saludo' as JarvisAction, emo: 'curioso' as JarvisEmotion, msg: '¡Hola Facu! Listo para romperla.' },
+                    { label: '⌨️', action: 'trabajando' as JarvisAction, emo: 'curioso' as JarvisEmotion, msg: 'Desplegando teclado láser holográfico y terminal en vivo.' },
+                    { label: '🔮', action: 'manipular_datos' as JarvisAction, emo: 'curioso' as JarvisEmotion, msg: 'Manipulando orbe cuántico de telemetría y memoria RAG 0-RAM.' },
+                    { label: '⚔️', action: 'explicacion' as JarvisAction, emo: 'combate' as JarvisEmotion, msg: 'Postura de defensa Sentinel activada.' },
+                    { label: '🏆', action: 'celebracion_salto' as JarvisAction, emo: 'orgullo' as JarvisEmotion, msg: '¡Salto de victoria 360 grados sin errores!' },
+                  ].map((pose) => (
+                    <button
+                      key={pose.action}
+                      onClick={() => handleTriggerAction(pose.action, pose.emo, pose.msg)}
+                      className={`px-2 py-1.5 rounded-xl border text-xs font-mono transition-all ${
+                        currentAction === pose.action
+                          ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200 scale-105'
+                          : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                      title={`Animación en tiempo real: ${pose.action}`}
+                    >
+                      {pose.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 pt-1 border-t border-slate-800/80">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5">
+                    <Wrench className="w-3.5 h-3.5 text-cyan-400" />
+                    <span className="text-[10px] font-mono font-bold tracking-wider text-slate-400 uppercase">
+                      Arsenal de Habilidades Reales (Despliega Terminal + Animación 3D):
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {[
+                      { id: 'all', label: `Todas (${ALL_SKILLS_AND_TOOLS.length})` },
+                      { id: 'primary', label: 'Primarias' },
+                      { id: 'secondary', label: 'Secundarias' },
+                      { id: 'tertiary', label: 'Terciarias' },
+                      { id: 'mode', label: 'Modos /plan /grill /goal' },
+                    ].map((tab) => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setSelectedSkillTier(tab.id as any)}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-mono transition-colors ${
+                          selectedSkillTier === tab.id
+                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 font-bold'
+                            : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                  {visibleSkills.map((sk) => (
+                    <button
+                      key={sk.id}
+                      onClick={() => askDeeBackend(sk.cmdPrompt, sk.action, sk.emotion)}
+                      className={`px-2.5 py-1 rounded-xl border text-[11px] font-mono flex items-center gap-1.5 shrink-0 transition-all active:scale-95 ${sk.badgeColor}`}
+                      title={`Ejecutar ${sk.name} en la Terminal en Vivo con animación '${sk.action}'`}
+                    >
+                      <span>{sk.icon}</span>
+                      <span className="font-semibold">{sk.name}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
+          </footer>
+        </main>
+      </div>
 
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-              {visibleSkills.map((sk) => (
-                <button
-                  key={sk.id}
-                  onClick={() => askDeeBackend(sk.cmdPrompt, sk.action, sk.emotion)}
-                  className={`px-2.5 py-1 rounded-xl border text-[11px] font-mono flex items-center gap-1.5 shrink-0 transition-all active:scale-95 ${sk.badgeColor}`}
-                  title={`Ejecutar ${sk.name} en la Terminal en Vivo con animación '${sk.action}'`}
-                >
-                  <span>{sk.icon}</span>
-                  <span className="font-semibold">{sk.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </footer>
-
-      {/* 6. MODAL: CENTRO DE OPERACIONES REALES PEGASUS (8 Módulos 100% Reales en Español) */}
+      {/* MODAL: CENTRO DE OPERACIONES REALES DEE */}
       <CentroOperacionesRealesModal
         abierto={centroOperacionesAbierto}
         seccionInicial={seccionCentroOperaciones}
@@ -1232,11 +1324,6 @@ export default function App() {
           askDeeBackend(orden, 'trabajando', 'curioso');
         }}
       />
-
-      {/* 7. MODAL: GUÍA TÉCNICA DE ARQUITECTURA */}
-      {showElectronGuide && (
-        <Img2ThreejsElectronGuide onClose={() => setShowElectronGuide(false)} />
-      )}
     </div>
   );
 }

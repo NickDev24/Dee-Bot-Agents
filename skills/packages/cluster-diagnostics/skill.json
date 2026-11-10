@@ -1,0 +1,14 @@
+{
+  "name": "cluster-diagnostics",
+  "version": "1.0.0",
+  "description": "Inspecciona salud de memoria, CPU, disco y puertos de nodos distribuidos.",
+  "allowed_tools": [
+    "memory_search",
+    "verify_artifact"
+  ],
+  "dependencies": [
+    "python3"
+  ],
+  "entrypoint": "skill_main.py",
+  "test_command": "python3 skills/packages/cluster-diagnostics/skill_main.py"
+}

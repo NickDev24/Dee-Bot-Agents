@@ -57,6 +57,19 @@ from core.sensory.butler import TTS_CACHE_DIR  # noqa: E402
 from core.sensory.eyes import FACE_GUARD  # noqa: E402
 from core.sensory.speaker_id import SPEAKER_ID  # noqa: E402
 from core.workers.cluster_client import CLUSTER  # noqa: E402
+from core.platform import (  # noqa: E402
+    CLUSTER_SCHEDULER,
+    COMPUTER_OPERATOR,
+    MCP_MANAGER,
+    MODEL_ENGINE,
+    ORCHESTRATOR,
+    PLATFORM_DB,
+    SECURITY_SUPERVISOR,
+    SKILL_REGISTRY,
+    TOOL_REGISTRY,
+    run_benchmarks,
+    run_doctor,
+)
 
 AUTONOMOUS_DAEMON = AutonomousSupervisorDaemon(
     execute_order_fn=lambda cmd: DEE_ENGINE.process_order(cmd, speak_reply=False)
@@ -85,7 +98,7 @@ MIME_TYPES = {
 def build_full_status() -> dict:
     return {
         "ok": True,
-        "project": "Dee-Bot-Agents",
+        "project": "DEE — Distributed Emergent Engine (Dee-Bot-Agents)",
         "version": "4.0.0",
         "uptime_s": round(time.time() - START_TS, 1),
         "character": CHARACTER.snapshot(),
@@ -99,6 +112,21 @@ def build_full_status() -> dict:
         "skills": list(MEMORY_STORE.list_skills().values()),
         "routines": DEE_ENGINE.routines.list_routines(),
         "messages": DEE_ENGINE.conversation_history[-25:],
+        "platform": {
+            "agents": PLATFORM_DB.list_agents(),
+            "teams": PLATFORM_DB.list_teams(),
+            "tasks": PLATFORM_DB.list_tasks(limit=25),
+            "nodes": CLUSTER_SCHEDULER.list_nodes(),
+            "memory_stats": PLATFORM_DB.memory_stats(),
+            "approvals": PLATFORM_DB.list_approvals(status="pending"),
+            "audit_logs": PLATFORM_DB.list_audit_logs(limit=30),
+            "agent_messages": PLATFORM_DB.list_agent_messages(limit=30),
+            "tools": TOOL_REGISTRY.list_tools(),
+            "installed_skills": SKILL_REGISTRY.list_skills(),
+            "mcp_servers": MCP_MANAGER.list_servers(),
+            "models": MODEL_ENGINE.list_models_and_providers(),
+            "security": SECURITY_SUPERVISOR.audit_system(),
+        },
     }
 
 
@@ -293,6 +321,80 @@ class DeeMasterHTTPHandler(BaseHTTPRequestHandler):
 
         if path == "/api/autonomia":
             return self._send_json(200, AUTONOMOUS_DAEMON.status())
+
+        # =====================================================================
+        # DEE PLATFORM REST API (GET /api/platform/*)
+        # =====================================================================
+        if path == "/api/platform/status":
+            return self._send_json(200, build_full_status()["platform"])
+
+        if path == "/api/platform/agents":
+            aid = (query.get("id") or [""])[0].strip()
+            if aid:
+                ag = PLATFORM_DB.get_agent(aid)
+                return self._send_json(200 if ag else 404, {"ok": bool(ag), "agent": ag})
+            return self._send_json(200, {"ok": True, "agents": PLATFORM_DB.list_agents()})
+
+        if path == "/api/platform/teams":
+            return self._send_json(200, {"ok": True, "teams": PLATFORM_DB.list_teams()})
+
+        if path == "/api/platform/tasks":
+            tid = (query.get("id") or [""])[0].strip()
+            if tid:
+                tk = PLATFORM_DB.get_task(tid)
+                return self._send_json(200 if tk else 404, {"ok": bool(tk), "task": tk})
+            status_filter = (query.get("status") or [None])[0]
+            return self._send_json(200, {"ok": True, "tasks": PLATFORM_DB.list_tasks(status=status_filter)})
+
+        if path == "/api/platform/nodes":
+            nid = (query.get("id") or [""])[0].strip()
+            if nid:
+                nd = CLUSTER_SCHEDULER.inspect_node(nid)
+                return self._send_json(200 if nd else 404, {"ok": bool(nd), "node": nd})
+            return self._send_json(200, {"ok": True, "nodes": CLUSTER_SCHEDULER.list_nodes()})
+
+        if path == "/api/platform/memory":
+            q_str = (query.get("q") or [""])[0].strip()
+            tier = (query.get("tier") or [None])[0]
+            if q_str:
+                return self._send_json(200, PLATFORM_DB.search_memory(q_str, tier=tier))
+            return self._send_json(
+                200,
+                {
+                    **PLATFORM_DB.memory_stats(),
+                    "recent": PLATFORM_DB.search_memory("", tier=tier, top_k=20).get("results", []),
+                },
+            )
+
+        if path == "/api/platform/models":
+            return self._send_json(200, {"ok": True, "models": MODEL_ENGINE.list_models_and_providers()})
+
+        if path == "/api/platform/skills":
+            return self._send_json(200, {"ok": True, "skills": SKILL_REGISTRY.list_skills(), "tools": TOOL_REGISTRY.list_tools()})
+
+        if path == "/api/platform/mcp":
+            srv = (query.get("server") or ["dee-core-mcp"])[0]
+            return self._send_json(200, MCP_MANAGER.inspect_server(srv))
+
+        if path == "/api/platform/logs":
+            limit = int((query.get("limit") or ["60"])[0])
+            return self._send_json(
+                200,
+                {
+                    "ok": True,
+                    "audit_logs": PLATFORM_DB.list_audit_logs(limit=limit),
+                    "agent_messages": PLATFORM_DB.list_agent_messages(limit=limit),
+                },
+            )
+
+        if path == "/api/platform/doctor":
+            return self._send_json(200, run_doctor())
+
+        if path == "/api/platform/benchmark":
+            return self._send_json(200, run_benchmarks())
+
+        if path == "/api/platform/security":
+            return self._send_json(200, SECURITY_SUPERVISOR.audit_system())
 
         # Static Frontend Fallback
         static = resolve_static_file(path)
@@ -632,6 +734,93 @@ class DeeMasterHTTPHandler(BaseHTTPRequestHandler):
             if accion in ("stop", "pausar"):
                 return self._send_json(200, AUTONOMOUS_DAEMON.stop())
             return self._send_json(200, AUTONOMOUS_DAEMON.run_self_check_now())
+
+        # =====================================================================
+        # DEE PLATFORM REST API (POST /api/platform/*)
+        # =====================================================================
+        if path == "/api/platform/agents":
+            action = str(body.get("action") or "create")
+            if action == "run":
+                aid = str(body.get("agent_id") or "dee_prime")
+                goal = str(body.get("goal") or body.get("prompt") or "Diagnóstico de agente")
+                res = ORCHESTRATOR.run_task(goal=goal, title=f"[{aid}] {goal[:60]}", autonomy_mode=str(body.get("autonomy_mode") or "CONTROLLED_AUTONOMY"))
+                return self._send_json(200, {"ok": True, "task": res})
+            ag = PLATFORM_DB.create_or_update_agent(body)
+            return self._send_json(200, {"ok": True, "agent": ag})
+
+        if path == "/api/platform/teams":
+            tm = PLATFORM_DB.create_team(body)
+            return self._send_json(200, {"ok": True, "team": tm})
+
+        if path == "/api/platform/tasks":
+            action = str(body.get("action") or "run")
+            if action == "cancel":
+                return self._send_json(200, ORCHESTRATOR.cancel_task(str(body.get("task_id") or body.get("id") or "")))
+            if action == "resume":
+                return self._send_json(200, ORCHESTRATOR.resume_task(str(body.get("task_id") or body.get("id") or "")))
+            if action == "recover_all":
+                return self._send_json(200, ORCHESTRATOR.recover_interrupted_tasks())
+            res = ORCHESTRATOR.run_task(
+                goal=str(body.get("goal") or "Ejecutar objetivo autónomo DEE"),
+                title=str(body.get("title") or ""),
+                autonomy_mode=str(body.get("autonomy_mode") or "CONTROLLED_AUTONOMY"),
+                scenario_hint=body.get("scenario"),
+                simulate_interrupt_after_step=body.get("simulate_interrupt_after_step"),
+                auto_approve_capability_in_demo=bool(body.get("auto_approve", False)),
+            )
+            return self._send_json(200, {"ok": res.get("status") in ("completed", "waiting_approval", "interrupted"), "task": res})
+
+        if path == "/api/platform/memory":
+            action = str(body.get("action") or "store")
+            if action == "delete":
+                return self._send_json(200, PLATFORM_DB.delete_memory(str(body.get("id") or "")))
+            if action == "search":
+                return self._send_json(
+                    200,
+                    PLATFORM_DB.search_memory(
+                        query=str(body.get("query") or ""),
+                        tier=body.get("tier"),
+                        namespace=body.get("namespace"),
+                        agent_id=body.get("agent_id"),
+                    ),
+                )
+            return self._send_json(
+                200,
+                PLATFORM_DB.store_memory(
+                    content=str(body.get("content") or ""),
+                    title=str(body.get("title") or body.get("topic") or ""),
+                    tier=str(body.get("tier") or "semantic"),
+                    namespace=str(body.get("namespace") or "global"),
+                    agent_id=str(body.get("agent_id") or "dee_prime"),
+                    tags=body.get("tags") or [],
+                ),
+            )
+
+        if path == "/api/platform/approvals/resolve":
+            ap_id = str(body.get("id") or body.get("approval_id") or "")
+            approved = bool(body.get("approved", True))
+            ap = PLATFORM_DB.resolve_approval(ap_id, approved=approved, resolved_by=str(body.get("resolved_by") or "ui_facu"))
+            resumed = None
+            if approved and ap.get("task_id"):
+                resumed = ORCHESTRATOR.resume_task(ap["task_id"])
+            return self._send_json(200, {"ok": True, "approval": ap, "resumed_task": resumed})
+
+        if path == "/api/platform/mcp/rpc":
+            return self._send_json(200, MCP_MANAGER.handle_jsonrpc(body))
+
+        if path == "/api/platform/skills":
+            action = str(body.get("action") or "install")
+            if action == "test":
+                return self._send_json(200, SKILL_REGISTRY.test_skill(str(body.get("name") or "code-verifier")))
+            return self._send_json(
+                200,
+                SKILL_REGISTRY.install_skill(
+                    name=str(body.get("name") or "custom-skill"),
+                    description=str(body.get("description") or "Skill instalada desde DEE"),
+                    allowed_tools=list(body.get("allowed_tools") or ["fs_read", "verify_artifact"]),
+                    code=str(body.get("code") or "import json\nprint(json.dumps({'ok': True}))\n"),
+                ),
+            )
 
         self._send_json(404, {"error": f"Unknown POST route: {path}"})
 

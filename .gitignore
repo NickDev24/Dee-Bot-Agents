@@ -36,3 +36,9 @@ npm-debug.log*
 data/
 !data/.gitkeep
 /tmp/dee_*
+
+# Runtime workspaces created by the cluster scheduler
+workspaces/
+
+# Symlinked dependency trees must never be published
+/node_modules

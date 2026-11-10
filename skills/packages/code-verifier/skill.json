@@ -1,0 +1,17 @@
+{
+  "name": "code-verifier",
+  "version": "1.2.0",
+  "description": "Analiza sintaxis Python, ejecuta suites unittest y verifica artefactos de software.",
+  "allowed_tools": [
+    "fs_read",
+    "fs_write",
+    "fs_patch",
+    "python_test_runner",
+    "verify_artifact"
+  ],
+  "dependencies": [
+    "python3"
+  ],
+  "entrypoint": "skill_main.py",
+  "test_command": "python3 skills/packages/code-verifier/skill_main.py"
+}

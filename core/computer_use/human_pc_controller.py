@@ -66,7 +66,15 @@ class HumanPCController:
         self._lock = threading.Lock()
         self._x11 = None
         self._xtst = None
+        self._display_keepalive = None
         self._load_native_x11()
+        # Mantener una conexión X11 viva evita que servidores sin sesión (Xvfb/CI)
+        # reinicien el puntero al desconectarse el último cliente.
+        if self._x11 is not None and os.environ.get("DISPLAY"):
+            try:
+                self._display_keepalive = self._x11.XOpenDisplay(None)
+            except Exception:
+                self._display_keepalive = None
 
     def _load_native_x11(self) -> None:
         try:
@@ -107,6 +115,22 @@ class HumanPCController:
 
             self._x11.XFlush.argtypes = [ctypes.c_void_p]
             self._x11.XFlush.restype = ctypes.c_int
+
+            self._x11.XSync.argtypes = [ctypes.c_void_p, ctypes.c_int]
+            self._x11.XSync.restype = ctypes.c_int
+
+            self._x11.XWarpPointer.argtypes = [
+                ctypes.c_void_p,
+                ctypes.c_ulong,
+                ctypes.c_ulong,
+                ctypes.c_int,
+                ctypes.c_int,
+                ctypes.c_uint,
+                ctypes.c_uint,
+                ctypes.c_int,
+                ctypes.c_int,
+            ]
+            self._x11.XWarpPointer.restype = ctypes.c_int
 
             self._x11.XStringToKeysym.argtypes = [ctypes.c_char_p]
             self._x11.XStringToKeysym.restype = ctypes.c_ulong
@@ -237,6 +261,28 @@ class HumanPCController:
     # -------------------------------------------------------------------------
     # 2. CONTROL FÍSICO DEL MOUSE (MOVER, CLIC, DOBLE CLIC, ARRASTRAR, SCROLL)
     # -------------------------------------------------------------------------
+    def _query_pointer_on_display(self, dpy: Any, root: int) -> tuple[int, int] | None:
+        """Consulta la posición real del cursor sobre un display ya abierto."""
+        root_ret = ctypes.c_ulong()
+        child_ret = ctypes.c_ulong()
+        root_x = ctypes.c_int()
+        root_y = ctypes.c_int()
+        win_x = ctypes.c_int()
+        win_y = ctypes.c_int()
+        mask_ret = ctypes.c_uint()
+        ok = self._x11.XQueryPointer(
+            dpy,
+            root,
+            ctypes.byref(root_ret),
+            ctypes.byref(child_ret),
+            ctypes.byref(root_x),
+            ctypes.byref(root_y),
+            ctypes.byref(win_x),
+            ctypes.byref(win_y),
+            ctypes.byref(mask_ret),
+        )
+        return (int(root_x.value), int(root_y.value)) if ok else None
+
     def mouse_move(self, x: int, y: int, smooth: bool = True) -> dict[str, Any]:
         info = self.get_screen_and_cursor()
         if not info.get("ok"):
@@ -244,11 +290,13 @@ class HumanPCController:
         target_x = max(0, min(info["width"] - 1, int(x)))
         target_y = max(0, min(info["height"] - 1, int(y)))
 
+        actual: tuple[int, int] | None = None
         with self._lock:
             dpy = self._open_display()
             if not dpy:
                 return {"ok": False, "error": "No se pudo abrir DISPLAY X11"}
             try:
+                root = self._x11.XDefaultRootWindow(dpy)
                 if smooth:
                     start_x, start_y = info["cursor_x"], info["cursor_y"]
                     steps = 8
@@ -261,10 +309,28 @@ class HumanPCController:
                 else:
                     self._xtst.XTestFakeMotionEvent(dpy, -1, target_x, target_y, 0)
                     self._x11.XFlush(dpy)
+
+                # XTest puede ser ignorado por servidores sin la extensión activa (p. ej. Xvfb).
+                # Forzamos la posición final con el protocolo X11 base y verificamos el estado real.
+                self._x11.XWarpPointer(dpy, 0, root, 0, 0, 0, 0, target_x, target_y)
+                self._x11.XSync(dpy, 0)
+                actual = self._query_pointer_on_display(dpy, root)
             finally:
                 self._x11.XCloseDisplay(dpy)
 
-        return {"ok": True, "accion": "mouse_move", "x": target_x, "y": target_y}
+        verified = actual is not None and abs(actual[0] - target_x) <= 2 and abs(actual[1] - target_y) <= 2
+        result: dict[str, Any] = {
+            "ok": verified,
+            "accion": "mouse_move",
+            "x": target_x,
+            "y": target_y,
+            "cursor_x": actual[0] if actual else None,
+            "cursor_y": actual[1] if actual else None,
+            "verified": verified,
+        }
+        if not verified:
+            result["error"] = "El cursor no alcanzó la coordenada objetivo"
+        return result
 
     def mouse_click(
         self,
@@ -488,11 +554,139 @@ class HumanPCController:
         vol = self.system_volume()
         return {
             "ok": True,
+            "session_type": os.environ.get("XDG_SESSION_TYPE", "x11"),
             "pantalla": screen,
             "ventanas_abiertas": windows,
             "volumen_pct": vol.get("volumen_pct", 75),
             "screenshot_disponible": DESKTOP_SHOT_PATH.exists(),
+            "usb_serial": self.list_usb_and_serial_devices(),
         }
+
+    # -------------------------------------------------------------------------
+    # 6. INTERFACES DE COMPATIBILIDAD Y ADAPTADORES EXTENDIDOS (PORTAPAPELES, USB/SERIAL, WAYLAND)
+    # -------------------------------------------------------------------------
+    @property
+    def display(self) -> str:
+        return os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY") or ":0"
+
+    @property
+    def screen_width(self) -> int:
+        return int(self.get_screen_and_cursor().get("width", 1366))
+
+    @property
+    def screen_height(self) -> int:
+        return int(self.get_screen_and_cursor().get("height", 768))
+
+    def get_mouse_position(self) -> dict[str, Any]:
+        info = self.get_screen_and_cursor()
+        return {
+            "ok": bool(info.get("ok", False)),
+            "x": int(info.get("cursor_x", info.get("x", 0))),
+            "y": int(info.get("cursor_y", info.get("y", 0))),
+            "backend": "libX11+libXtst" if self._x11 else "wayland_or_headless_fallback",
+        }
+
+    def get_active_window(self) -> dict[str, Any]:
+        wins = self.list_open_windows()
+        if wins:
+            top = wins[0]
+            return {
+                "ok": True,
+                "window_id": top.get("id"),
+                "title": top.get("titulo", ""),
+                "class": top.get("clase", ""),
+                "width": top.get("ancho", 0),
+                "height": top.get("alto", 0),
+            }
+        return {"ok": True, "window_id": "0x0", "title": "RootDesktop", "class": "X11Root"}
+
+    def move_mouse_smooth(self, x: int, y: int, duration: float = 0.06) -> dict[str, Any]:
+        res = self.mouse_move(x, y, smooth=True)
+        return {**res, "duration_s": duration}
+
+    def take_screenshot(self, filename: str | None = None) -> dict[str, Any]:
+        target = Path(filename).resolve() if filename else DESKTOP_SHOT_PATH
+        target.parent.mkdir(parents=True, exist_ok=True)
+        info = self.get_screen_and_cursor()
+        w = int(info.get("width", 1366))
+        h = int(info.get("height", 768))
+        disp = os.environ.get("DISPLAY", ":0")
+        t0 = time.perf_counter()
+        try:
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-loglevel",
+                    "error",
+                    "-f",
+                    "x11grab",
+                    "-video_size",
+                    f"{w}x{h}",
+                    "-i",
+                    disp,
+                    "-frames:v",
+                    "1",
+                    str(target),
+                ],
+                timeout=5,
+                check=True,
+            )
+            size_bytes = target.stat().st_size if target.exists() else 0
+            return {
+                "ok": size_bytes > 0,
+                "path": str(target),
+                "size_bytes": size_bytes,
+                "width": w,
+                "height": h,
+                "latency_ms": round((time.perf_counter() - t0) * 1000.0, 2),
+            }
+        except Exception as exc:
+            return {"ok": False, "path": str(target), "error": str(exc)}
+
+    def clipboard_get(self) -> dict[str, Any]:
+        env = os.environ.copy()
+        env.setdefault("DISPLAY", ":0")
+        for cmd in (["xclip", "-selection", "clipboard", "-o"], ["xsel", "--clipboard", "--output"], ["wl-paste"]):
+            try:
+                res = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=2)
+                if res.returncode == 0:
+                    return {"ok": True, "backend": cmd[0], "text": res.stdout}
+            except Exception:
+                continue
+        return {"ok": True, "backend": "internal_buffer", "text": getattr(self, "_clip_buf", "")}
+
+    def clipboard_set(self, text: str) -> dict[str, Any]:
+        self._clip_buf = str(text or "")
+        env = os.environ.copy()
+        env.setdefault("DISPLAY", ":0")
+        for cmd in (["xclip", "-selection", "clipboard", "-i"], ["xsel", "--clipboard", "--input"], ["wl-copy"]):
+            try:
+                res = subprocess.run(cmd, input=self._clip_buf, env=env, capture_output=True, text=True, timeout=2)
+                if res.returncode == 0:
+                    return {"ok": True, "backend": cmd[0], "length": len(self._clip_buf)}
+            except Exception:
+                continue
+        return {"ok": True, "backend": "internal_buffer", "length": len(self._clip_buf)}
+
+    def list_usb_and_serial_devices(self) -> dict[str, Any]:
+        serial_ports = [str(p) for p in sorted(Path("/dev").glob("ttyUSB*")) + sorted(Path("/dev").glob("ttyACM*"))]
+        usb_devices: list[dict[str, str]] = []
+        usb_root = Path("/sys/bus/usb/devices")
+        if usb_root.exists():
+            for d in sorted(usb_root.iterdir()):
+                prod_file = d / "product"
+                if prod_file.is_file():
+                    try:
+                        usb_devices.append(
+                            {
+                                "bus_id": d.name,
+                                "product": prod_file.read_text(encoding="utf-8", errors="ignore").strip(),
+                            }
+                        )
+                    except Exception:
+                        pass
+        return {"ok": True, "serial_ports": serial_ports, "usb_devices": usb_devices[:25]}
 
 
 PC_CONTROLLER = HumanPCController()

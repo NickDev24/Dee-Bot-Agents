@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Dee-Bot-Agents v4.0 Pegasus Supreme - Suite de Pruebas de Integridad End-to-End (12/12).
+Dee-Bot-Agents — DEE (Distributed Emergent Engine) - Suite de Pruebas de Integridad End-to-End (12/12).
 Verifica todos los subsistemas reales (Sensores ALSA/V4L2, Biometría, Sentinel, Clúster,
 Memoria, Skills, Fast-Path, Gateway Atómico :8730, Workbench :8731, Control Físico PC X11,
 Motor RAG SQLite FTS5 0-RAM, Driver CDP, Motor Relay JSONL y Git Worktree Forge).
@@ -53,7 +53,7 @@ def generate_test_wav(path: Path, freq_hz: float = 165.0, duration_s: float = 0.
 
 def run_tests() -> None:
     print("=================================================================")
-    print("🧪 DEE-BOT-AGENTS v4.0 PEGASUS SUPREME - SUITE DE PRUEBAS (12/12)")
+    print("🧪 DEE-BOT-AGENTS — DEE (DISTRIBUTED EMERGENT ENGINE) - SUITE DE PRUEBAS (12/12)")
     print("=================================================================")
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -148,7 +148,7 @@ def run_tests() -> None:
         if rag_stats.get("archivos_indexados", 0) == 0:
             LOCAL_RAG.ingest_directory()
             rag_stats = LOCAL_RAG.stats()
-        rag_res = LOCAL_RAG.query("Pegasus Gateway Facu Cercuetti", top_k=3)
+        rag_res = LOCAL_RAG.query("Dee Gateway Facu Cercuetti", top_k=3)
         assert rag_stats.get("archivos_indexados", 0) > 0 and rag_res.get("ok") is True
         print(
             f"✅ [11/12] Motor RAG SQLite FTS5 BM25 0-RAM OK "
@@ -169,7 +169,7 @@ def run_tests() -> None:
         )
 
     print("=================================================================")
-    print("🏆 LAS 12 PRUEBAS DE INTEGRIDAD PEGASUS PASARON AL 100%")
+    print("🏆 LAS 12 PRUEBAS DE INTEGRIDAD DEE PASARON AL 100%")
     print("=================================================================")
 
 

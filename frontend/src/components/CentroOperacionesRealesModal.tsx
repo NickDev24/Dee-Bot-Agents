@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 
 export type SeccionCentroOperaciones =
+  | 'dee_platform'
   | 'escuadron'
   | 'control_pc'
   | 'navegador'
@@ -45,6 +46,7 @@ interface CentroOperacionesRealesModalProps {
 }
 
 const SECCIONES: { id: SeccionCentroOperaciones; titulo: string; icono: React.ReactNode }[] = [
+  { id: 'dee_platform', titulo: 'DEE Core, Tareas & Escenarios A-F', icono: <Layers className="w-4 h-4" /> },
   { id: 'escuadron', titulo: 'Escuadrón & Subagentes 3D', icono: <Users className="w-4 h-4" /> },
   { id: 'control_pc', titulo: 'Control Físico PC (X11)', icono: <MousePointer className="w-4 h-4" /> },
   { id: 'navegador', titulo: 'Navegador Real & Driver CDP', icono: <Globe className="w-4 h-4" /> },
@@ -120,6 +122,11 @@ export const CentroOperacionesRealesModal: React.FC<CentroOperacionesRealesModal
   const [nuevoPrvUrl, setNuevoPrvUrl] = useState<string>('http://127.0.0.1:11434/v1');
   const [nuevoPrvModelos, setNuevoPrvModelos] = useState<string>('llama3.2, qwen2.5-coder');
 
+  // DEE Platform Core (Tareas, Escenarios A-F, Memoria 6 niveles, Aprobaciones)
+  const [platformData, setPlatformData] = useState<any>(null);
+  const [objetivoPlatform, setObjetivoPlatform] = useState<string>('Ejecutar investigación forense y contrastar fuentes');
+  const [modoAutonomiaPlatform, setModoAutonomiaPlatform] = useState<string>('CONTROLLED_AUTONOMY');
+
   useEffect(() => {
     setSeccion(seccionInicial);
   }, [seccionInicial]);
@@ -128,6 +135,10 @@ export const CentroOperacionesRealesModal: React.FC<CentroOperacionesRealesModal
     async (sec: SeccionCentroOperaciones) => {
       setCargando(true);
       try {
+        if (sec === 'dee_platform') {
+          const rPlat = await fetch(`${baseUrl}/api/platform/status`);
+          if (rPlat.ok) setPlatformData(await rPlat.json());
+        }
         if (sec === 'escuadron' || sec === 'proveedores_config') {
           const r = await fetch(`${baseUrl}/api/configuracion`);
           if (r.ok) {
@@ -323,7 +334,7 @@ export const CentroOperacionesRealesModal: React.FC<CentroOperacionesRealesModal
       onMouseDown={(e) => e.target === e.currentTarget && onCerrar()}
     >
       <div className="w-full max-w-6xl h-[86vh] rounded-3xl bg-[#050914] border border-slate-700/80 shadow-[0_25px_90px_rgba(0,0,0,0.95),0_0_40px_rgba(0,240,255,0.15)] flex flex-col md:flex-row overflow-hidden text-slate-100">
-        {/* BARRA LATERAL DE NAVEGACIÓN (Estilo OpenGrokBot / Pegasus OS en Español) */}
+        {/* BARRA LATERAL DE NAVEGACIÓN (Estilo OpenGrokBot / Dee OS en Español) */}
         <aside className="w-full md:w-64 bg-[#03060e] border-b md:border-b-0 md:border-r border-slate-800/90 p-4 flex flex-col justify-between shrink-0">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -411,6 +422,184 @@ export const CentroOperacionesRealesModal: React.FC<CentroOperacionesRealesModal
 
           {/* Cuerpo con Scroll */}
           <div className="flex-1 overflow-y-auto p-6 space-y-6 font-mono">
+            {/* ===============================================================
+                0. DEE CORE: TAREAS, ESCENARIOS A-F, MEMORIA 6 NIVELES & APROBACIONES
+               =============================================================== */}
+            {seccion === 'dee_platform' && (
+              <div className="space-y-5">
+                <div className="p-4 rounded-2xl bg-slate-900/80 border border-cyan-500/40 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-sm font-bold text-cyan-300">
+                        🧠 MOTOR COGNITIVO DISTRIBUIDO (DEE CORE) — ESCENARIOS VERIFICABLES A–F
+                      </h4>
+                      <p className="text-[11px] text-slate-400">
+                        Ejecutá objetivos reales con descomposición DAG, workspaces aislados, tests automatizados, lazo cerrado X11/DOM, clúster de 3 nodos y recuperación por checkpoints.
+                      </p>
+                    </div>
+                    <select
+                      value={modoAutonomiaPlatform}
+                      onChange={(e) => setModoAutonomiaPlatform(e.target.value)}
+                      className="px-3 py-1.5 rounded-xl bg-slate-950 border border-cyan-500/40 text-xs text-cyan-300"
+                    >
+                      <option value="PLAN_ONLY">PLAN_ONLY</option>
+                      <option value="ASK_BEFORE_ACTION">ASK_BEFORE_ACTION</option>
+                      <option value="CONTROLLED_AUTONOMY">CONTROLLED_AUTONOMY</option>
+                      <option value="FULL_AUTONOMY">FULL_AUTONOMY</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+                    {[
+                      { id: 'A', label: 'Escenario A: Investigación', goal: 'Investigación compleja contrastando fuentes primarias' },
+                      { id: 'B', label: 'Escenario B: App + Tests', goal: 'Desarrollar aplicación en workspace aislado, ejecutar tests y corregir bug' },
+                      { id: 'C', label: 'Escenario C: PC X11 + DOM', goal: 'Operar escritorio X11 y DOM web en lazo cerrado verificable' },
+                      { id: 'D', label: 'Escenario D: Clúster 3 PCs', goal: 'Distribuir carga en facu, barto y manager1 y consolidar resultados' },
+                      { id: 'E', label: 'Escenario E: Crash Recovery', goal: 'Ejecutar tarea de 3 etapas y verificar recuperación desde checkpoint' },
+                      { id: 'F', label: 'Escenario F: Permiso Skill', goal: 'Solicitar capacidad faltante python_test_runner y autorizar ejecución' },
+                    ].map((sc) => (
+                      <button
+                        key={sc.id}
+                        onClick={async () => {
+                          setCargando(true);
+                          try {
+                            await fetch(`${baseUrl}/api/platform/tasks`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                goal: sc.goal,
+                                scenario: sc.id,
+                                autonomy_mode: modoAutonomiaPlatform,
+                                auto_approve: sc.id === 'F',
+                              }),
+                            });
+                            notificar(`Escenario ${sc.id} ejecutado y verificado`);
+                            await cargarDatosSeccion('dee_platform');
+                          } finally {
+                            setCargando(false);
+                          }
+                        }}
+                        className="px-2.5 py-2 rounded-xl bg-cyan-950/60 hover:bg-cyan-900/70 border border-cyan-500/40 text-[11px] font-bold text-cyan-200 text-left transition"
+                      >
+                        ⚡ {sc.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={objetivoPlatform}
+                      onChange={(e) => setObjetivoPlatform(e.target.value)}
+                      placeholder="Escribí un objetivo complejo para DEE Core..."
+                      className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white"
+                    />
+                    <button
+                      onClick={async () => {
+                        if (!objetivoPlatform.trim()) return;
+                        setCargando(true);
+                        try {
+                          await fetch(`${baseUrl}/api/platform/tasks`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              goal: objetivoPlatform,
+                              autonomy_mode: modoAutonomiaPlatform,
+                            }),
+                          });
+                          notificar('Tarea ejecutada en DEE Core');
+                          await cargarDatosSeccion('dee_platform');
+                        } finally {
+                          setCargando(false);
+                        }
+                      }}
+                      className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs"
+                    >
+                      Ejecutar Tarea
+                    </button>
+                  </div>
+                </div>
+
+                {/* Memoria de 6 niveles & Aprobaciones pendientes */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-2">
+                    <h5 className="text-xs font-bold text-purple-300">
+                      📚 MEMORIA PERSISTENTE DE 6 NIVELES (SQLite WAL + FTS5 BM25)
+                    </h5>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      {Object.entries(platformData?.memory_stats?.by_tier || {}).map(([tier, cnt]: [string, any]) => (
+                        <div key={tier} className="p-2 rounded-xl bg-slate-950 border border-slate-800">
+                          <div className="text-[10px] text-slate-400 uppercase">{tier}</div>
+                          <div className="text-sm font-bold text-purple-300">{String(cnt)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-2">
+                    <h5 className="text-xs font-bold text-rose-300">
+                      🛡️ APROBACIONES PENDIENTES & SUPERVISOR DETERMINISTA
+                    </h5>
+                    {(platformData?.approvals || []).length === 0 ? (
+                      <div className="text-xs text-emerald-400">
+                        ✓ Sin aprobaciones pendientes. Barreras de Path Traversal, Shell & Prompt Injection activas.
+                      </div>
+                    ) : (
+                      (platformData?.approvals || []).map((ap: any) => (
+                        <div key={ap.id} className="p-2.5 rounded-xl bg-slate-950 border border-rose-500/40 flex items-center justify-between gap-2 text-xs">
+                          <div>
+                            <div className="font-bold text-rose-200">{ap.agent_id} → {ap.tool_name}</div>
+                            <div className="text-[10px] text-slate-400">{ap.reason}</div>
+                          </div>
+                          <button
+                            onClick={async () => {
+                              await fetch(`${baseUrl}/api/platform/approvals/resolve`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ id: ap.id, approved: true }),
+                              });
+                              notificar(`Permiso ${ap.id} autorizado`);
+                              await cargarDatosSeccion('dee_platform');
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-emerald-500 text-slate-950 font-bold text-[10px]"
+                          >
+                            Aprobar
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Lista de Tareas Recientes con Etapas y Evidencia */}
+                <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-2.5">
+                  <h5 className="text-xs font-bold text-emerald-300">
+                    📋 HISTORIAL DE TAREAS VERIFICADAS ({(platformData?.tasks || []).length})
+                  </h5>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {(platformData?.tasks || []).map((tk: any) => (
+                      <div key={tk.id} className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-white">{tk.title}</span>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            tk.status === 'completed' ? 'bg-emerald-500/20 text-emerald-300' :
+                            tk.status === 'waiting_approval' ? 'bg-amber-500/20 text-amber-300' :
+                            'bg-cyan-500/20 text-cyan-300'
+                          }`}>
+                            {tk.status.toUpperCase()} ({tk.autonomy_mode})
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-300">{tk.result_summary || tk.goal}</div>
+                        <div className="text-[10px] text-slate-500">
+                          Etapas: {(tk.steps || []).length} · Artefactos verificados: {(tk.artifacts || []).length} · Verificación: {tk.verification?.verified ? 'SÍ' : 'PENDIENTE'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* ===============================================================
                 1. ESCUADRÓN & SUBAGENTES 3D (Mismo personaje, distintos colores)
                =============================================================== */}

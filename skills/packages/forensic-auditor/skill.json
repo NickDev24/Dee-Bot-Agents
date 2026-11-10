@@ -1,0 +1,15 @@
+{
+  "name": "forensic-auditor",
+  "version": "1.1.0",
+  "description": "Audita directorios de código buscando mocks, archivos vacíos o promesas sin implementación.",
+  "allowed_tools": [
+    "fs_list",
+    "fs_read",
+    "verify_artifact"
+  ],
+  "dependencies": [
+    "python3"
+  ],
+  "entrypoint": "skill_main.py",
+  "test_command": "python3 skills/packages/forensic-auditor/skill_main.py"
+}
