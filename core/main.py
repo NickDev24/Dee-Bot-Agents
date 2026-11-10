@@ -43,6 +43,7 @@ from core.computer_use import CDP_DRIVER, PC_CONTROLLER  # noqa: E402
 from core.computer_use.cdp_browser_driver import WEB_SHOT_PATH  # noqa: E402
 from core.computer_use.human_pc_controller import DESKTOP_SHOT_PATH  # noqa: E402
 from core.events import BUS, CHARACTER, TURN_CTRL  # noqa: E402
+from core.orchestrator.autonomous_daemon import AutonomousSupervisorDaemon  # noqa: E402
 from core.orchestrator.dee_engine import DEE_ENGINE  # noqa: E402
 from core.orchestrator.llm_pool import LLM_POOL  # noqa: E402
 from core.orchestrator.local_rag import LOCAL_RAG  # noqa: E402
@@ -56,6 +57,10 @@ from core.sensory.butler import TTS_CACHE_DIR  # noqa: E402
 from core.sensory.eyes import FACE_GUARD  # noqa: E402
 from core.sensory.speaker_id import SPEAKER_ID  # noqa: E402
 from core.workers.cluster_client import CLUSTER  # noqa: E402
+
+AUTONOMOUS_DAEMON = AutonomousSupervisorDaemon(
+    execute_order_fn=lambda cmd: DEE_ENGINE.process_order(cmd, speak_reply=False)
+)
 
 HOST = os.environ.get("DEE_HOST", "0.0.0.0")
 PORT = int(os.environ.get("DEE_PORT", "8091"))
@@ -89,6 +94,7 @@ def build_full_status() -> dict:
         "squad": DEE_ENGINE.get_squad(),
         "llm_pool": LLM_POOL.status(),
         "sentinel": SENTINEL.status(),
+        "autonomy": AUTONOMOUS_DAEMON.status(),
         "memories": MEMORY_STORE.list_memories(),
         "skills": list(MEMORY_STORE.list_skills().values()),
         "routines": DEE_ENGINE.routines.list_routines(),
@@ -284,6 +290,9 @@ class DeeMasterHTTPHandler(BaseHTTPRequestHandler):
             if q_str:
                 return self._send_json(200, LOCAL_RAG.query(q_str))
             return self._send_json(200, LOCAL_RAG.stats())
+
+        if path == "/api/autonomia":
+            return self._send_json(200, AUTONOMOUS_DAEMON.status())
 
         # Static Frontend Fallback
         static = resolve_static_file(path)
@@ -616,6 +625,14 @@ class DeeMasterHTTPHandler(BaseHTTPRequestHandler):
                 },
             )
 
+        if path == "/api/autonomia":
+            accion = str(body.get("accion") or "check")
+            if accion in ("start", "iniciar"):
+                return self._send_json(200, AUTONOMOUS_DAEMON.start())
+            if accion in ("stop", "pausar"):
+                return self._send_json(200, AUTONOMOUS_DAEMON.stop())
+            return self._send_json(200, AUTONOMOUS_DAEMON.run_self_check_now())
+
         self._send_json(404, {"error": f"Unknown POST route: {path}"})
 
     def log_message(self, fmt: str, *args) -> None:
@@ -633,6 +650,7 @@ def start_server(host: str = HOST, port: int = PORT) -> None:
     boot_sensory_system(on_voice_command=_on_voice_order)
     CLUSTER.start_health_monitor()
     DEE_ENGINE.routines.start()
+    AUTONOMOUS_DAEMON.start()
 
     print(
         f"⚡ Dee-Bot-Agents v4.0 Supreme listening on http://{host}:{port} "
