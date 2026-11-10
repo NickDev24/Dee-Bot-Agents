@@ -94,7 +94,7 @@ export class CyberBird3D {
 
   constructor() {
     this.group = new THREE.Group();
-    this.group.name = 'KRONOS_CYBER_BIRD_3D';
+    this.group.name = 'DEE_CYBER_BIRD_3D';
 
     // 1. Initialize Eye Textures
     this.leftEyeCanvas = document.createElement('canvas');

@@ -85,7 +85,7 @@ export const CyberBirdStage: React.FC<CyberBirdStageProps> = ({
           primary: '#00f0ff',
           secondary: '#0ea5e9',
           glow: 'rgba(0, 240, 255, 0.75)',
-          badge: '⚡ KRONOS ONLINE // ANÁLISIS ACTIVO',
+          badge: '⚡ DEE ONLINE // ANÁLISIS ACTIVO',
           halo: 'from-cyan-500/20 via-blue-500/10 to-transparent',
         };
     }
@@ -226,7 +226,7 @@ export const CyberBirdStage: React.FC<CyberBirdStageProps> = ({
         {currentAction === 'saludo' && (
           <div className="absolute -top-12 z-30 pointer-events-none px-4 py-1.5 rounded-full bg-cyan-950/90 border border-cyan-400 text-cyan-300 font-mono text-xs font-bold shadow-[0_0_20px_rgba(0,240,255,0.6)] flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-            <span>¡SALUDO TÁCTICO! // KRONOS LISTO PARA EL COMBATE</span>
+            <span>¡SALUDO TÁCTICO! // DEE LISTO PARA EL COMBATE</span>
           </div>
         )}
 
@@ -253,7 +253,7 @@ export const CyberBirdStage: React.FC<CyberBirdStageProps> = ({
           {/* High-Resolution Mascot Artwork (Angry Birds Cybernetic Bird) */}
           <img
             src="/assets/cyber_bird_avatar.jpg"
-            alt="KRONOS Cyber-Bird Mascot"
+            alt="DEE Cyber-Bird Mascot"
             className="relative z-10 w-full h-full object-contain rounded-3xl drop-shadow-[0_15px_35px_rgba(0,0,0,0.8)] filter brightness-105 contrast-105 pointer-events-none"
           />
 

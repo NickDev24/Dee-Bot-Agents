@@ -215,7 +215,7 @@ export const LiveTaskInspectorModal: React.FC<LiveTaskInspectorModalProps> = ({
                   <div 
                     key={i} 
                     className={`p-3 rounded-xl max-w-[85%] text-xs ${
-                      msg.sender.includes('Dee') || msg.sender.includes('Kronos')
+                      msg.sender.includes('Dee') || msg.sender.includes('DEE')
                         ? 'bg-cyan-950/80 border border-cyan-500/40 text-cyan-100 ml-auto' 
                         : 'bg-slate-900 border border-slate-800 text-slate-200'
                     }`}

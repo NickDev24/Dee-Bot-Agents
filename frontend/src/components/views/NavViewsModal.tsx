@@ -60,7 +60,7 @@ export const NavViewsModal: React.FC<NavViewsModalProps> = ({
                 {title}
               </h2>
               <p className="text-xs text-slate-400 font-mono">
-                KRONOS Agente Supremo // Arquitectura Híbrida OpenGrokBot + Rakazo + Hermes-Agent
+                DEE — Distributed Emergent Engine // Arquitectura Híbrida OpenGrokBot + Rakazo + Hermes-Agent
               </p>
             </div>
           </div>
