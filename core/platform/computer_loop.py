@@ -200,6 +200,20 @@ class ClosedLoopComputerOperator:
             take_snapshot=bool(params.get("snapshot_after", True)),
             tag="after",
         )
+
+        # Reintento determinista: otro cliente X11 (por ejemplo el demonio 24/7)
+        # puede mover el puntero entre la acción y la observación.
+        if action_type in ("mouse_move", "inspect_desktop_and_web"):
+            target_x = int(params.get("x", 420))
+            target_y = int(params.get("y", 310))
+            for _ in range(2):
+                mouse = after_desktop.get("mouse", {})
+                if abs(int(mouse.get("x", -9999)) - target_x) <= 2 and abs(
+                    int(mouse.get("y", -9999)) - target_y
+                ) <= 2:
+                    break
+                PC_CONTROLLER.move_mouse_smooth(target_x, target_y, duration=0.05)
+                after_desktop = self.observe_desktop_state(take_snapshot=False, tag="after_retry")
         after_web = (
             self.observe_web_state(params["url"])
             if "url" in params and params["url"]

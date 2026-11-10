@@ -10,7 +10,7 @@
 [![Escritorio Electron + Three.js](https://img.shields.io/badge/Escritorio-Electron_%2B_Three.js_3D-purple.svg)](desktop/)
 [![Docker Listo](https://img.shields.io/badge/Docker-Listo-blue.svg)](docker-compose.yml)
 
-![Cabina Espacial 3D de Dee-Bot-Agents — DEE](docs/tutorials/screenshots/01_dee_hud_3d_cockpit.png)
+![HUD 3D de Dee-Bot-Agents — DEE corriendo como aplicación nativa Electron](docs/tutorials/screenshots/01_dee_electron_hud_3d.png)
 
 ---
 
@@ -22,6 +22,55 @@
 | **🎥 Video Tutorial 02** | Demo en vivo de ejecuciones en terminal, pruebas de integridad, sensores físicos y cabina espacial 3D | [`docs/tutorials/videos/video_02_demo_terminal_y_hud_3d.mp4`](docs/tutorials/videos/video_02_demo_terminal_y_hud_3d.mp4) |
 | **📰 Pack de Artículos para Blog** | 4 artículos técnicos y tutoriales listos para publicar en **[facucercuetti.online/blog](https://facucercuetti.online/blog)** | [`docs/ARTICULOS_BLOG_FACUCERCUETTI_ONLINE.md`](docs/ARTICULOS_BLOG_FACUCERCUETTI_ONLINE.md) |
 | **📐 Plan Maestro Forense** | Documento de arquitectura, benchmarks y superación de `Muse` + `Grok Bot` + `Hermes` | [`docs/ARCHITECTURE_MASTER_PLAN.md`](docs/ARCHITECTURE_MASTER_PLAN.md) |
+
+---
+
+## 🖼️ Capturas Reales de la Aplicación Electron
+
+Todas las imágenes de esta sección se capturan desde la **ventana Electron real** con
+`webContents.capturePage()` (`npm run capturas`), contra el Core en `:8091`. No son mockups:
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/tutorials/screenshots/01_dee_electron_hud_3d.png" alt="HUD 3D nativo en Electron"></td>
+    <td width="50%"><img src="docs/tutorials/screenshots/02_dee_escuadron_6_agentes_3d.png" alt="Escuadrón de 6 agentes 3D"></td>
+  </tr>
+  <tr>
+    <td><b>HUD 3D nativo</b>: barra de título Electron v44.7.0, escuadrón lateral, Dee en escena y saludo inicial corto.</td>
+    <td><b>Formación de 6 agentes 3D</b>: mismo modelo con el color distintivo de cada subagente.</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/tutorials/screenshots/03_dee_centro_operaciones_x11.png" alt="Control físico PC X11"></td>
+    <td width="50%"><img src="docs/tutorials/screenshots/04_dee_skills_rag_0ram.png" alt="Skills y motor RAG"></td>
+  </tr>
+  <tr>
+    <td><b>Control Físico PC (X11)</b>: resolución y cursor reales, volumen <code>pactl</code>, mouse/teclado y ventanas abiertas.</td>
+    <td><b>Skills &amp; Motor RAG 0-RAM</b>: archivos y fragmentos indexados en SQLite FTS5 BM25, sin RAM en reposo.</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/tutorials/screenshots/05_dee_navegador_cdp.png" alt="Navegador real y driver CDP"></td>
+    <td width="50%"><img src="docs/tutorials/screenshots/06_dee_terminal_en_vivo.png" alt="Terminal en vivo"></td>
+  </tr>
+  <tr>
+    <td><b>Navegador real &amp; Driver CDP</b>: mapa DOM con selectores <code>@ref</code> sobre Chrome en <code>:9222</code>.</td>
+    <td><b>Terminal en vivo</b>: se abre solo cuando vos ejecutás una orden, con la salida real de los comandos.</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/tutorials/screenshots/07_terminal_install_y_deploy.png" alt="Instalación y arranque"></td>
+    <td width="50%"><img src="docs/tutorials/screenshots/08_terminal_suite_12_tests.png" alt="Suite de integridad 12/12"></td>
+  </tr>
+  <tr>
+    <td><b>Instalación y arranque</b>: salida real de <code>install.sh</code>, <code>start_dee.sh</code> y <code>/health</code>.</td>
+    <td><b>Suite de integridad 12/12</b> y 25 tests de plataforma ejecutados de verdad.</td>
+  </tr>
+</table>
+
+```bash
+# Regenerar las capturas de la app (requiere Core en :8091 y HUD compilado)
+npm run capturas
+# Regenerar además los renders de terminal y los videos narrados
+python3 scripts/generate_tutorials_media.py
+```
 
 ---
 
@@ -85,7 +134,7 @@ Diseñado por **Facu Cercuetti (`@NickDev24`)**, `Dee-Bot-Agents` convierte un c
    - **Voz Argentina con Lip-Sync a 30 FPS (`voice.py`)**: `edge-tts` (`es-AR-TomasNeural`) + `FreeLLMAPI` + `Piper ONNX` con extracción de visemas reales.
 
 7. **🦅 Aplicación Nativa de Escritorio Electron + Escuadrón de 6 Agentes 3D (`desktop/` & `frontend/`)**:
-   - Se ejecuta como **aplicación de escritorio nativa Electron** (`./scripts/iniciar_escritorio_electron.sh`) o en navegador (`:8091`), **100% en español**.
+   - Se ejecuta como **aplicación de escritorio nativa Electron** (`./scripts/iniciar_escritorio_electron.sh` o `npm run desktop`), **100% en español**. El navegador (`:8091`) es solo el respaldo del mismo HUD.
    - **Dee Prime (`#00f0ff`)** y sus **5 Subagentes** (`Hermes X11` `#ec4899`, `Barto Forge` `#10b981`, `Manager Scout` `#f59e0b`, `Sentinel Guard` `#f43f5e`, `Rakazo Archivist` `#a855f7`) comparten el mismo modelo 3D (`CyberBird3D`) con sus colores distintivos, pudiendo alternar el agente principal o desplegar la **Formación 3D de los 6 Agentes en Escena**.
    - **Terminal en Vivo Flotante y Movible (`DraggableLiveTerminal.tsx`)** que se despliega automáticamente en cada tarea.
 
@@ -93,22 +142,30 @@ Diseñado por **Facu Cercuetti (`@NickDev24`)**, `Dee-Bot-Agents` convierte un c
 
 ## 🚀 Guía Paso a Paso: Descarga, Instalación, Escritorio Electron y Deploy
 
-### Opción 1: Ejecución Nativa + Escritorio Electron (`< 45 MB RAM` en el Core)
+### Opción 1: Aplicación Nativa Electron (`< 45 MB RAM` en el Core)
 
 ```bash
 # 1. Clonar el repositorio oficial de Facu Cercuetti (@NickDev24)
 git clone https://github.com/NickDev24/Dee-Bot-Agents.git
 cd Dee-Bot-Agents
 
-# 2. Instalar estructura de datos y compilar HUD 3D
+# 2. Instalar estructura de datos, dependencias y compilar el HUD 3D
 ./scripts/install.sh
+npm install
 
-# 3. Iniciar Gateway (:8730), Workbench (:8731) y Dee Core (:8091)
+# 3. Iniciar Gateway (:8730), Workbench (:8731), Dee Core (:8091) y abrir la ventana Electron
 ./scripts/start_dee.sh
 
-# 4. Abrir la Aplicación de Escritorio Nativa Electron (estilo Grok Bot / Muse)
+# Alternativa explícita: compilar y abrir solo la app de escritorio
+npm run desktop
+# o directamente la ventana nativa (sin recompilar)
 ./scripts/iniciar_escritorio_electron.sh
 ```
+
+> La app abre **siempre como ventana nativa Electron** (frameless, con controles propios de
+> minimizar/maximizar/fijar/cerrar). `http://127.0.0.1:8091` queda solo como respaldo web del
+> mismo HUD. Si los demonios no responden, Electron muestra una pantalla de error con la ruta
+> del log (`data/logs/dee_core.log`) en lugar de cerrarse en silencio.
 
 ### Uso de la CLI de DEE (`cli/dee_cli.py`) y Herramientas de Gateway (`bin/`)
 

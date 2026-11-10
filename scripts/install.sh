@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-echo "⚡ Instalando Dee-Bot-Agents v4.0 Supreme..."
+echo "⚡ Instalando Dee-Bot-Agents — DEE (Distributed Emergent Engine) v4.0..."
 
 # 1. Crear estructura de datos persistente
 mkdir -p data/biometrics \

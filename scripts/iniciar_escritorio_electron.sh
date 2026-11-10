@@ -8,7 +8,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 unset ELECTRON_RUN_AS_NODE
-export DISPLAY="${DISPLAY:-:1}"
+export DISPLAY="${DISPLAY:-:0}"
 
 echo "⚡ [Dee-Bot-Agents] Verificando demonios nativos (:8091, :8730, :8731)..."
 ./scripts/start_dee.sh --no-window

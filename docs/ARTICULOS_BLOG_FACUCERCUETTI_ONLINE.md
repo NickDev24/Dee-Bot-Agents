@@ -32,7 +32,7 @@ La mayoría de los proyectos de agentes autónomos actuales (como Jarvis clásic
 
 Con esa premisa decidí crear y liberar para toda la comunidad **[Dee-Bot-Agents v4.0 Supreme](https://github.com/NickDev24/Dee-Bot-Agents)**, diseñado para correr de forma **100% fluida, rápida y autónoma** sobre un clúster local de 3 PCs modestas (`facu` con un Intel Pentium B950 de 2 núcleos, más dos nodos workers opcionales `barto` y `manager1` con procesadores Celeron N4020).
 
-![Cabina Espacial 3D de Dee-Bot-Agents v4.0 Supreme](./tutorials/screenshots/01_dee_hud_3d_cockpit.png)
+![HUD 3D de Dee-Bot-Agents — DEE como aplicación nativa Electron](./tutorials/screenshots/01_dee_electron_hud_3d.png)
 
 ### ¿Qué hace único a Dee-Bot-Agents en el mundo?
 - **👂 Oídos Físicos ALSA + Biometría Acústica Vocal (12-D)**: escucha continua de ultra-bajo consumo con detector de **doble aplauso** (`180 ms – 650 ms`), piso de ruido adaptativo (que aprende y filtra el sonido del cooler de tu PC) y verificación biométrica de 12 dimensiones en Python puro para distinguir mi voz de la de cualquier extraño.
@@ -74,7 +74,7 @@ $ ./cli/dee_cli.py ask "estado del cluster"
    tu nodo maestro tiene 49.1% de RAM en uso, 14.2% de CPU y 80.01 gigas libres en disco.
 ```
 
-![Ejecución en Terminal y Suite de Smoke Tests 8/8](./tutorials/screenshots/05_terminal_cli_and_smoke_tests.png)
+![Ejecución en Terminal y Suite de Integridad 12/12](./tutorials/screenshots/08_terminal_suite_12_tests.png)
 
 ### 2. Smart Dispatcher + Dynamic Tool Pruning
 Inspirado en los mejores patrones de `OpenGrokBot` y `muse-local-gateway`, cuando una consulta requiere razonamiento de IA, el **Smart Dispatcher** clasifica el turno en una de 4 rutas (`build | answer | discuss | security`) e inyecta **únicamente** las herramientas necesarias para ese rol. Esto reduce el tamaño del prompt de sistema en más de un **78%**.
@@ -82,7 +82,7 @@ Inspirado en los mejores patrones de `OpenGrokBot` y `muse-local-gateway`, cuand
 ### 3. Memoria Episódica en Markdown (0 MB de RAM en reposo) + Cristalizador de Skills
 En lugar de levantar un servidor ChromaDB o Qdrant que consume 1.2 GB de RAM en segundo plano, `core/orchestrator/memory_md.py` almacena la memoria episódica de cada agente en archivos Markdown puros (`data/memory/*.md`) con escritura atómica (`.tmp` -> `os.replace`) y cristaliza soluciones repetitivas en `data/skills/*.json` invocables mediante `/nombre-skill`.
 
-![Inspector 3D de Estaciones de Trabajo en Vivo](./tutorials/screenshots/02_dee_workstations_inspector.png)
+![Escuadrón de 6 Agentes 3D en Escena](./tutorials/screenshots/02_dee_escuadron_6_agentes_3d.png)
 
 ---
 
@@ -111,7 +111,7 @@ Para que un agente físico en tu oficina sea verdaderamente seguro, no alcanza c
 
 El vector resultante de **12 dimensiones** se compara por similitud coseno contra la huella registrada del propietario (`data/biometrics/facu_voice_profile.json`).
 
-![Orbe Acústico y Subtítulos con Lip-Sync Real a 30 FPS](./tutorials/screenshots/03_dee_voice_orb_lipsync.png)
+![Control Físico Real de X11 desde el Centro Operativo](./tutorials/screenshots/03_dee_centro_operaciones_x11.png)
 
 ### Visión Multi-Cámara con Filtro PGM de 2 Etapas (`eyes.py`)
 Analizar video continuo con un VLM suele saturar cualquier CPU o agotar cuotas de API en minutos. En `core/sensory/eyes.py`, cada captura pasa primero por dos filtros ultralivianos en formato PGM (`Portable GrayMap`):
@@ -146,7 +146,7 @@ excerpt: "Guía completa con capturas, videos y ejemplos de terminal para instal
 🎬 **Video Tutorial de Instalación y Deploy**:
 - [Ver Video Tutorial 01: Descarga, Instalación, Configuración y Deploy en Docker (MP4)](./tutorials/videos/video_01_instalacion_y_deploy_completo.mp4)
 
-![Captura de Terminal: Instalación y Deploy en Docker](./tutorials/screenshots/04_terminal_install_and_deploy.png)
+![Captura de Terminal: Instalación, Arranque Nativo y Deploy](./tutorials/screenshots/07_terminal_install_y_deploy.png)
 
 ### Paso 1: Clonar el Repositorio Público desde GitHub
 Abrí tu terminal y cloná el repositorio oficial de **Facu Cercuetti (`@NickDev24`)**:

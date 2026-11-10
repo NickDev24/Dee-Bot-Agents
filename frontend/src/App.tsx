@@ -319,9 +319,10 @@ const ETIQUETAS_CAMARA: Record<'default' | 'closeup' | 'overview', string> = {
 
 export default function App() {
   const [selectedSkillTier, setSelectedSkillTier] = useState<'all' | 'primary' | 'secondary' | 'tertiary' | 'mode'>('all');
+  const [mostrarArsenal, setMostrarArsenal] = useState<boolean>(false);
   const [sidebarAbierta, setSidebarAbierta] = useState<boolean>(true);
   const [ventanaSiempreEncima, setVentanaSiempreEncima] = useState<boolean>(false);
-  const [versionElectron, setVersionElectron] = useState<string>('38.8.6');
+  const [versionElectron, setVersionElectron] = useState<string>('44.7.0');
 
   // Estado del Centro de Operaciones Reales (8 Módulos Reales)
   const [centroOperacionesAbierto, setCentroOperacionesAbierto] = useState(false);
@@ -341,7 +342,7 @@ export default function App() {
   const [activeTaskLabel, setActiveTaskLabel] = useState<string>('Listo para ejecutar órdenes de Facu');
 
   // Terminal Flotante Movible en Vivo (Se despliega automáticamente con cada tarea)
-  const [terminalOpen, setTerminalOpen] = useState<boolean>(true);
+  const [terminalOpen, setTerminalOpen] = useState<boolean>(false);
   const [terminalMinimized, setTerminalMinimized] = useState<boolean>(false);
   const [terminalEntries, setTerminalEntries] = useState<TerminalLogEntry[]>([
     {
@@ -373,7 +374,7 @@ export default function App() {
   // Audio / Voz / Lip-Sync
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [speechText, setSpeechText] = useState(
-    '¡Che Facu! Aplicación nativa Electron estilo GrokBot activa: tenés la barra lateral de tu escuadrón a la izquierda, tus 6 agentes 3D en el centro y la terminal flotante en vivo.'
+    '¡Hola Facu! ¿Necesitás ayuda con algo?'
   );
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -387,6 +388,9 @@ export default function App() {
   const ttsQueueRef = useRef<BackendTTSChunk[]>([]);
   const isPlayingQueueRef = useRef(false);
   const actionResetTimerRef = useRef<number | null>(null);
+  // Mientras Facu no interactúe, el HUD queda en saludo inicial: los eventos del
+  // demonio autónomo (terminal, voz, telemetría) no invaden la pantalla al abrir.
+  const hudInteractivoRef = useRef(false);
 
   useEffect(() => {
     if (window.deeElectron?.obtenerInfoElectron) {
@@ -485,23 +489,27 @@ export default function App() {
           const { type, payload } = msg;
 
           if (type === 'character_state' && payload) {
-            if (payload.action) {
-              setCurrentAction(payload.action);
-              if (payload.action !== 'idle') {
-                scheduleReturnToIdle(5000);
+            if (hudInteractivoRef.current) {
+              if (payload.action) {
+                setCurrentAction(payload.action);
+                if (payload.action !== 'idle') {
+                  scheduleReturnToIdle(5000);
+                }
               }
+              if (payload.emotion) setCurrentEmotion(payload.emotion);
+              if (payload.note) setActiveTaskLabel(payload.note);
+              if (typeof payload.is_listening === 'boolean') setIsListening(payload.is_listening);
             }
-            if (payload.emotion) setCurrentEmotion(payload.emotion);
-            if (payload.note) setActiveTaskLabel(payload.note);
-            if (typeof payload.is_listening === 'boolean') setIsListening(payload.is_listening);
           } else if (type === 'agent_changed' && payload) {
             if (payload.id) setAgenteActivoId(payload.id);
             if (payload.color) setAgenteColor(payload.color);
             if (payload.nombre) setAgenteNombre(payload.nombre);
           } else if (type === 'terminal_exec_start' && payload) {
-            setTerminalOpen(true);
-            setTerminalMinimized(false);
-            setCurrentAction('trabajando');
+            if (hudInteractivoRef.current) {
+              setTerminalOpen(true);
+              setTerminalMinimized(false);
+              setCurrentAction('trabajando');
+            }
             setActiveTaskLabel(`Ejecutando en ${payload.target || 'facu'}: ${payload.cmd}`);
             setTerminalEntries((prev) => [
               ...prev.slice(-35),
@@ -514,8 +522,10 @@ export default function App() {
               },
             ]);
           } else if (type === 'terminal_exec_done' && payload) {
-            setTerminalOpen(true);
-            setTerminalMinimized(false);
+            if (hudInteractivoRef.current) {
+              setTerminalOpen(true);
+              setTerminalMinimized(false);
+            }
             setTerminalEntries((prev) => {
               const idx = prev.findIndex((item) => item.id === payload.id);
               const updatedEntry: TerminalLogEntry = {
@@ -537,8 +547,10 @@ export default function App() {
               return [...prev.slice(-35), updatedEntry];
             });
           } else if (type === 'tts_chunk' && payload?.text) {
-            ttsQueueRef.current.push(payload);
-            processTtsQueue();
+            if (hudInteractivoRef.current) {
+              ttsQueueRef.current.push(payload);
+              processTtsQueue();
+            }
           } else if (type === 'double_clap') {
             setCurrentAction('saludo');
             setCurrentEmotion('curioso');
@@ -627,6 +639,7 @@ export default function App() {
       preferredEmotion: JarvisEmotion = 'curioso'
     ) => {
       const baseUrl = voiceEngine.getBackendBaseUrl();
+      hudInteractivoRef.current = true;
       setTerminalOpen(true);
       setTerminalMinimized(false);
       setCurrentAction(preferredAction);
@@ -693,6 +706,7 @@ export default function App() {
       }
 
       const baseUrl = voiceEngine.getBackendBaseUrl();
+      hudInteractivoRef.current = true;
       setTerminalOpen(true);
       setTerminalMinimized(false);
       setCurrentAction('trabajando');
@@ -817,6 +831,7 @@ export default function App() {
   };
 
   const handleToggleMic = useCallback(() => {
+    hudInteractivoRef.current = true;
     if (isListening) {
       voiceEngine.stopListening();
       setIsListening(false);
@@ -1189,91 +1204,21 @@ export default function App() {
 
           <div className="flex-1 pointer-events-none" />
 
-          {/* CONSOLA INFERIOR DE COMANDO Y ARSENAL DE HABILIDADES */}
+          {/* BARRA DE COMANDO COMPACTA — no tapa al personaje 3D */}
           <footer className="relative z-20 flex flex-col items-center justify-end pb-3 px-4 pointer-events-none">
-            <div className="w-full max-w-xl mb-2">
-              <MuseSubtitlePill
-                text={speechText}
-                isSpeaking={isSpeaking}
-                emotion={currentEmotion}
-                onReplayVoice={() => speakDialogue(speechText, currentEmotion)}
-              />
-            </div>
-
-            <div className="w-full max-w-4xl rounded-3xl bg-[#050914]/90 border border-slate-800/90 backdrop-blur-2xl p-3 shadow-[0_15px_60px_rgba(0,0,0,0.85)] pointer-events-auto space-y-2.5">
-              <div className="flex flex-col md:flex-row items-center gap-2.5">
-                <div className="flex items-center gap-2 shrink-0">
-                  <div className="scale-75 -my-3">
-                    <MuseVoiceOrb
-                      isListening={isListening}
-                      isSpeaking={isSpeaking}
-                      lipSyncData={lipSyncData}
-                      onToggleMic={handleToggleMic}
-                      statusLabel=""
-                    />
-                  </div>
-                </div>
-
-                <form onSubmit={handleSubmitPrompt} className="flex-1 w-full flex items-center gap-2">
-                  <div className="flex-1 flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-slate-950/90 border border-slate-800 focus-within:border-cyan-400/70 transition-colors">
-                    <span className="text-cyan-400 font-mono text-xs font-bold">{'>'}</span>
-                    <input
-                      type="text"
-                      value={promptInput}
-                      onChange={(e) => setPromptInput(e.target.value)}
-                      placeholder={`Ordenar a ${agenteNombre} (/control-pc-x11, /rag-memoria, /cdp-mapa, /plan, /grill, /goal)...`}
-                      className="flex-1 bg-transparent text-xs text-slate-100 placeholder-slate-500 font-mono focus:outline-none"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={!promptInput.trim()}
-                    className="px-4 py-2 rounded-2xl bg-cyan-500 hover:bg-cyan-400 disabled:opacity-30 text-slate-950 font-mono font-bold text-xs flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(0,240,255,0.3)]"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    <span>Ejecutar</span>
-                  </button>
-                </form>
-
-                <div className="flex items-center gap-1 shrink-0">
-                  {[
-                    { label: '👋', action: 'saludo' as JarvisAction, emo: 'curioso' as JarvisEmotion, msg: '¡Hola Facu! Listo para romperla.' },
-                    { label: '⌨️', action: 'trabajando' as JarvisAction, emo: 'curioso' as JarvisEmotion, msg: 'Desplegando teclado láser holográfico y terminal en vivo.' },
-                    { label: '🔮', action: 'manipular_datos' as JarvisAction, emo: 'curioso' as JarvisEmotion, msg: 'Manipulando orbe cuántico de telemetría y memoria RAG 0-RAM.' },
-                    { label: '⚔️', action: 'explicacion' as JarvisAction, emo: 'combate' as JarvisEmotion, msg: 'Postura de defensa Sentinel activada.' },
-                    { label: '🏆', action: 'celebracion_salto' as JarvisAction, emo: 'orgullo' as JarvisEmotion, msg: '¡Salto de victoria 360 grados sin errores!' },
-                  ].map((pose) => (
-                    <button
-                      key={pose.action}
-                      onClick={() => handleTriggerAction(pose.action, pose.emo, pose.msg)}
-                      className={`px-2 py-1.5 rounded-xl border text-xs font-mono transition-all ${
-                        currentAction === pose.action
-                          ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200 scale-105'
-                          : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:text-white'
-                      }`}
-                      title={`Animación en tiempo real: ${pose.action}`}
-                    >
-                      {pose.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2 pt-1 border-t border-slate-800/80">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-1.5">
-                    <Wrench className="w-3.5 h-3.5 text-cyan-400" />
-                    <span className="text-[10px] font-mono font-bold tracking-wider text-slate-400 uppercase">
-                      Arsenal de Habilidades Reales (Despliega Terminal + Animación 3D):
-                    </span>
-                  </div>
+            {mostrarArsenal && (
+              <div className="w-full max-w-2xl mb-2 rounded-2xl bg-[#050914]/95 border border-slate-800/90 backdrop-blur-2xl p-2.5 shadow-2xl pointer-events-auto">
+                <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
+                  <span className="text-[10px] font-mono font-bold tracking-wider text-slate-400 uppercase">
+                    Habilidades de {agenteNombre}
+                  </span>
                   <div className="flex items-center gap-1">
                     {[
                       { id: 'all', label: `Todas (${ALL_SKILLS_AND_TOOLS.length})` },
                       { id: 'primary', label: 'Primarias' },
                       { id: 'secondary', label: 'Secundarias' },
                       { id: 'tertiary', label: 'Terciarias' },
-                      { id: 'mode', label: 'Modos /plan /grill /goal' },
+                      { id: 'mode', label: 'Modos' },
                     ].map((tab) => (
                       <button
                         key={tab.id}
@@ -1289,14 +1234,13 @@ export default function App() {
                     ))}
                   </div>
                 </div>
-
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
                   {visibleSkills.map((sk) => (
                     <button
                       key={sk.id}
                       onClick={() => askDeeBackend(sk.cmdPrompt, sk.action, sk.emotion)}
                       className={`px-2.5 py-1 rounded-xl border text-[11px] font-mono flex items-center gap-1.5 shrink-0 transition-all active:scale-95 ${sk.badgeColor}`}
-                      title={`Ejecutar ${sk.name} en la Terminal en Vivo con animación '${sk.action}'`}
+                      title={`Ejecutar ${sk.name} en la Terminal en Vivo`}
                     >
                       <span>{sk.icon}</span>
                       <span className="font-semibold">{sk.name}</span>
@@ -1304,6 +1248,58 @@ export default function App() {
                   ))}
                 </div>
               </div>
+            )}
+
+            <div className="w-full max-w-lg mb-1.5">
+              <MuseSubtitlePill
+                text={speechText}
+                isSpeaking={isSpeaking}
+                emotion={currentEmotion}
+                onReplayVoice={() => speakDialogue(speechText, currentEmotion)}
+              />
+            </div>
+
+            <div className="w-full max-w-2xl flex items-center gap-1.5 rounded-full bg-[#050914]/95 border border-slate-800/90 backdrop-blur-2xl pl-1 pr-2 py-1 shadow-[0_10px_40px_rgba(0,0,0,0.8)] pointer-events-auto">
+              <div className="scale-[0.6] -my-4 shrink-0">
+                <MuseVoiceOrb
+                  isListening={isListening}
+                  isSpeaking={isSpeaking}
+                  lipSyncData={lipSyncData}
+                  onToggleMic={handleToggleMic}
+                  statusLabel=""
+                />
+              </div>
+
+              <form onSubmit={handleSubmitPrompt} className="flex-1 min-w-0 flex items-center gap-1.5">
+                <span className="text-cyan-400 font-mono text-xs font-bold">{'>'}</span>
+                <input
+                  type="text"
+                  value={promptInput}
+                  onChange={(e) => setPromptInput(e.target.value)}
+                  placeholder={`Escribile a ${agenteNombre} o pedile ayuda...`}
+                  className="flex-1 min-w-0 bg-transparent text-xs text-slate-100 placeholder-slate-500 font-mono focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={!promptInput.trim()}
+                  className="p-1.5 rounded-full bg-cyan-500 hover:bg-cyan-400 disabled:opacity-30 text-slate-950 transition-all shadow-[0_0_15px_rgba(0,240,255,0.3)]"
+                  title="Enviar orden"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                </button>
+              </form>
+
+              <button
+                onClick={() => setMostrarArsenal((v) => !v)}
+                className={`p-1.5 rounded-full transition-colors ${
+                  mostrarArsenal
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                    : 'text-slate-400 hover:text-cyan-300 hover:bg-slate-800'
+                }`}
+                title="Mostrar u ocultar habilidades"
+              >
+                <Wrench className="w-3.5 h-3.5" />
+              </button>
             </div>
           </footer>
         </main>

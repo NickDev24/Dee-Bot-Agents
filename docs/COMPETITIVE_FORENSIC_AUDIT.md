@@ -137,11 +137,13 @@ Para superar de forma comprobable a las 11 alternativas en hardware modesto (Lin
 |---|---|---|
 | Suite unitaria, integración, seguridad, E2E, estrés y benchmarks | `python3 -m unittest discover -s tests -v` | **25/25 OK** (≈30 s) |
 | Smoke test Dee | `python3 scripts/smoke_test.py` | **12/12 OK** con `DISPLAY=:1` |
-| Build de producción del frontend | `cd frontend && npm run build` | **OK** (1612 módulos; advertencia de chunk de 890,74 kB) |
+| Build de producción del frontend | `cd frontend && npm run build` | **OK** (1612 módulos; chunks separados: `three` 498,42 kB, app 358,11 kB, `iconos` 26,52 kB, `react` 4,21 kB; sin advertencia de chunk >500 kB) |
 | Diagnóstico integral | `python3 cli/dee_cli.py doctor` | **OK**; listos: `openai_compatible`, `ollama`, `local_deterministic`; sin credenciales: Gemini, Anthropic, Mistral, Qwen, Cloudflare; inalcanzable: `llamacpp` |
 | Benchmarks | `python3 cli/dee_cli.py benchmark` | Artefacto en `data/evidence/latest_benchmark.json` |
 | Sintaxis Python | `python3 -m compileall -q core cli node_agent tests skills scripts` | **OK** |
-| Sintaxis Node/Electron | `node --check desktop/*.cjs` | **OK** |
+| Sintaxis Node/Electron | `node --check desktop/*.cjs scripts/capturar_screenshots.cjs` | **OK** |
+| Captura real de la app Electron | `npm run capturas` sobre Xvfb `:99` | **6/6 capturas** de 1439x899 desde `webContents.capturePage()` con Electron 44.7.0 |
+| Suite tras el reintento X11 del Escenario C | `python3 -m unittest discover -s tests` | **25/25 OK** |
 | Sintaxis de scripts | `bash -n scripts/*.sh bin/*.sh` | **OK** |
 | CLI industrial | `dee init/status/agent/team/task/node/memory/model/skill/mcp/logs/doctor/benchmark/security audit` | Comandos ejecutados; creación/ejecución/cancelación e instalación de skill probadas con datos temporales y limpiadas después |
 
@@ -162,4 +164,12 @@ Medición cruda de la última corrida de benchmark en esta máquina (2 vCPU, sin
 4. **Browser automation**: el smoke test reportó `CDP activo=False` (no había sesión Chrome con depuración remota). El Escenario C verificó DOM contra un portal HTTP local, no contra Chrome real.
 5. **Pruebas sintéticas**: DSP de voz y visión PGM están etiquetadas explícitamente como `[SYNTHETIC_UNIT]`; no sustituyen captura de hardware real.
 6. **`dee stop`**: solo termina el proceso iniciado por `dee start` mediante su PID file; no mata procesos ajenos que ocupen `:8091`.
-7. **Frontend**: el bundle principal supera los 500 kB; Vite emite advertencia de tamaño. No se aplicó code-splitting en esta pasada.
+7. **Frontend**: resuelto con `manualChunks` en `frontend/vite.config.ts` (Three.js, React e iconos separados); el build ya no emite la advertencia de chunk >500 kB.
+8. **Ventana Electron en el escritorio real**: la app se verificó abriendo la ventana nativa y capturando su contenido con `webContents.capturePage()` sobre Xvfb (`DISPLAY=:99`), con `--no-zygote --disable-gpu-sandbox` porque este entorno de ejecución bloquea el zygote de Chromium. No se pudo inspeccionar visualmente la ventana sobre el `DISPLAY=:1` físico desde esta sesión; el lanzador y el proceso principal sí se ejecutaron y cargaron el HUD real.
+
+### 4.4 Correcciones de escritorio Electron y HUD en esta pasada
+1. **`desktop/launch.cjs`**: eliminó la ruta absoluta ajena `/home/facu/AnyModelBot/...`; ahora resuelve el binario de Electron del propio `node_modules`, limpia `ELECTRON_RUN_AS_NODE`, usa `--ozone-platform-hint=auto` en Linux y falla con un mensaje accionable si falta `npm install`.
+2. **`desktop/main.cjs`**: los demonios (`:8091`, `:8730`, `:8731`) escriben su salida en `data/logs/*.log` en lugar de `stdio: 'ignore'`; se agregó instancia única (enfoca la ventana existente), `disable-dev-shm-usage` y una pantalla de error con la ruta del log en vez de cerrar en silencio.
+3. **HUD (`frontend/src/App.tsx`)**: se eliminó el contenedor flotante inferior que tapaba al personaje; ahora hay una barra de comando compacta con el arsenal de habilidades plegable. Al abrir, Dee solo saluda (`¿Necesitás ayuda con algo?`): la terminal y la voz del demonio autónomo ya no se despliegan solas hasta que Facu interactúa.
+4. **Centro Operativo**: el modal sincroniza la sección pedida desde la barra lateral (antes podía abrir siempre `Escuadrón`).
+5. **Capturas y README**: se reemplazaron las capturas viejas (marca `KRONOS`) por 6 capturas reales de la ventana Electron y 2 renders de terminal con salida real; `scripts/generate_tutorials_media.py` ya no copia imágenes `kronos_*` ni usa rutas absolutas ajenas.

@@ -6,7 +6,7 @@ cd "$ROOT_DIR"
 
 mkdir -p data/logs
 unset ELECTRON_RUN_AS_NODE
-export DISPLAY="${DISPLAY:-:1}"
+export DISPLAY="${DISPLAY:-:0}"
 
 echo "⚡ Iniciando servicios locales de Dee-Bot-Agents — DEE (Distributed Emergent Engine)..."
 

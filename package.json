@@ -10,9 +10,10 @@
     "start": "node desktop/launch.cjs",
     "desktop": "npm run build && node desktop/launch.cjs",
     "servidor": "./scripts/start_dee.sh",
+    "capturas": "node scripts/capturar_screenshots.cjs",
     "test": "python3 scripts/smoke_test.py"
   },
   "devDependencies": {
-    "electron": "^35.0.0"
+    "electron": "^44.7.0"
   }
 }
