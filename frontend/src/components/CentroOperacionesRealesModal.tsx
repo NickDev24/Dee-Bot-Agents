@@ -85,6 +85,8 @@ export const CentroOperacionesRealesModal: React.FC<CentroOperacionesRealesModal
   const [urlNavegador, setUrlNavegador] = useState<string>('https://facucercuetti.online/blog');
   const [datosNavegador, setDatosNavegador] = useState<any>(null);
   const [mapaCdp, setMapaCdp] = useState<any[]>([]);
+  const [cdpMotor, setCdpMotor] = useState<string>('');
+  const [cdpLatencia, setCdpLatencia] = useState<number | null>(null);
   const [modoVistaWeb, setModoVistaWeb] = useState<'estructurado' | 'iframe'>('estructurado');
 
   // Programas & Procesos
@@ -238,6 +240,8 @@ export const CentroOperacionesRealesModal: React.FC<CentroOperacionesRealesModal
       if (resCdp.ok) {
         const cdpJson = await resCdp.json();
         setMapaCdp(cdpJson.elementos_interactivos || []);
+        setCdpMotor(cdpJson.motor || '');
+        setCdpLatencia(typeof cdpJson.latencia_ms === 'number' ? cdpJson.latencia_ms : null);
       }
       notificar(`Página cargada y analizada en vivo: ${finalUrl}`);
     } finally {
@@ -1060,8 +1064,20 @@ export const CentroOperacionesRealesModal: React.FC<CentroOperacionesRealesModal
                     </div>
 
                     <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-2 max-h-[440px] overflow-y-auto">
-                      <div className="text-xs font-bold text-purple-300">
+                      <div className="text-xs font-bold text-purple-300 flex flex-wrap items-center gap-2">
                         🎯 MAPA DE ELEMENTOS INTERACTIVOS CDP (@ref: {mapaCdp.length})
+                        {cdpMotor && (
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                              cdpMotor === 'cdp-websocket'
+                                ? 'bg-emerald-500/20 text-emerald-300'
+                                : 'bg-amber-500/20 text-amber-300'
+                            }`}
+                          >
+                            {cdpMotor === 'cdp-websocket' ? 'CDP EN VIVO' : 'RESPALDO HTTP'}
+                            {cdpLatencia != null ? ` · ${Math.round(cdpLatencia)} ms` : ''}
+                          </span>
+                        )}
                       </div>
                       {mapaCdp.map((el) => (
                         <div

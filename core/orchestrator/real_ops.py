@@ -263,7 +263,7 @@ class RealOperationsManager:
 
         if not SETTINGS_FILE.exists():
             default_settings = {
-                "nombre_sistema": "Dee-Bot-Agents v4.0 Supreme",
+                "nombre_sistema": "Dee-Bot-Agents — DEE (Distributed Emergent Engine) v4.0",
                 "comandante": "Facu Cercuetti",
                 "github": "https://github.com/NickDev24/Dee-Bot-Agents",
                 "blog": "https://facucercuetti.online/blog",

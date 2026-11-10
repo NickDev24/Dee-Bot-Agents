@@ -1,5 +1,5 @@
 """
-Dee-Bot-Agents v4.0 Supreme - Multi-Node Cluster Client & Anti-Loop Envelope Router.
+Dee-Bot-Agents — DEE (Distributed Emergent Engine) v4.0 - Multi-Node Cluster Client & Anti-Loop Envelope Router.
 Orchestrates `facu` (Master), `barto` (Worker 1), and `manager1` (Worker 2)
 using:
 1. Hermes API Server (:8642) HTTP/SSE

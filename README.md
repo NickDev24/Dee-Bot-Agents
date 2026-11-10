@@ -36,7 +36,7 @@ Todas las imágenes de esta sección se capturan desde la **ventana Electron rea
     <td width="50%"><img src="docs/tutorials/screenshots/02_dee_escuadron_6_agentes_3d.png" alt="Escuadrón de 6 agentes 3D"></td>
   </tr>
   <tr>
-    <td><b>HUD 3D nativo</b>: barra de título Electron v44.7.0, escuadrón lateral, Dee en escena y saludo inicial corto.</td>
+    <td><b>HUD 3D nativo</b>: barra de título Electron v44.10.2, escuadrón lateral, Dee en escena y saludo inicial corto.</td>
     <td><b>Formación de 6 agentes 3D</b>: mismo modelo con el color distintivo de cada subagente.</td>
   </tr>
   <tr>
@@ -61,7 +61,13 @@ Todas las imágenes de esta sección se capturan desde la **ventana Electron rea
   </tr>
   <tr>
     <td><b>Instalación y arranque</b>: salida real de <code>install.sh</code>, <code>start_dee.sh</code> y <code>/health</code>.</td>
-    <td><b>Suite de integridad 12/12</b> y 25 tests de plataforma ejecutados de verdad.</td>
+    <td><b>Suite de integridad 12/12</b> y 29 tests de plataforma ejecutados de verdad.</td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/tutorials/screenshots/09_dee_ventana_escritorio_real_x11.png" alt="Ventana nativa abierta en el escritorio físico X11"></td>
+  </tr>
+  <tr>
+    <td colspan="2"><b>Ventana nativa en el escritorio físico</b> (<code>DISPLAY=:1</code>, 2726x768): capturada de la pantalla real con <code>ffmpeg x11grab</code> al ejecutar <code>npm run desktop</code>; abre solo con el saludo inicial.</td>
   </tr>
 </table>
 

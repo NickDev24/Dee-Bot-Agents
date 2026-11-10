@@ -322,7 +322,7 @@ export default function App() {
   const [mostrarArsenal, setMostrarArsenal] = useState<boolean>(false);
   const [sidebarAbierta, setSidebarAbierta] = useState<boolean>(true);
   const [ventanaSiempreEncima, setVentanaSiempreEncima] = useState<boolean>(false);
-  const [versionElectron, setVersionElectron] = useState<string>('44.7.0');
+  const [versionElectron, setVersionElectron] = useState<string>('');
 
   // Estado del Centro de Operaciones Reales (8 Módulos Reales)
   const [centroOperacionesAbierto, setCentroOperacionesAbierto] = useState(false);
@@ -895,7 +895,7 @@ export default function App() {
             <span className="text-cyan-400">⚡</span>
             <span>DEE-BOT-AGENTS</span>
             <span className="px-1.5 py-0.5 rounded bg-cyan-500/15 border border-cyan-500/40 text-[10px] text-cyan-300">
-              ELECTRON NATIVO v{versionElectron}
+              ELECTRON NATIVO{versionElectron ? ` v${versionElectron}` : ''}
             </span>
           </span>
           <span className="hidden md:inline text-[10px] font-mono text-slate-400">

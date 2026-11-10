@@ -169,6 +169,9 @@ app.whenReady().then(async () => {
   await reload(win);
   await clickByText(win, 'Navegador & Driver CDP');
   await waitForText(win, 'Navegador Real & Driver CDP');
+  // Extrae el DOM por CDP real para que la captura muestre refs @n1.. y el motor usado.
+  await clickByText(win, 'Ir & Extraer DOM (@ref)');
+  await waitForText(win, '@n1', 15000);
   await capture(win, '05_dee_navegador_cdp.png');
 
   await reload(win);

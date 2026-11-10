@@ -1,5 +1,5 @@
 """
-Dee-Bot-Agents v4.0 Supreme - Sentinel Safety Supervisor.
+Dee-Bot-Agents — DEE (Distributed Emergent Engine) v4.0 - Sentinel Safety Supervisor.
 Deterministic Pre-Execution Command Guard + Voice-Verified Approval Queue + Kill-Switch.
 """
 

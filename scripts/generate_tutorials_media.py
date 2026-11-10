@@ -9,6 +9,7 @@ la aplicación y guarda `webContents.capturePage()` en `docs/tutorials/screensho
 Los renders de terminal se construyen con la salida REAL de los comandos.
 """
 
+import json
 import os
 import shutil
 import subprocess
@@ -298,14 +299,27 @@ def main() -> None:
     smoke_lines, smoke_code = run_capture(["python3", "scripts/smoke_test.py"], timeout=600)
     doctor_lines, _ = run_capture(["python3", "cli/dee_cli.py", "doctor"], timeout=300)
     smoke_summary = [ln for ln in smoke_lines if "✅" in ln or "🏆" in ln or "❌" in ln]
+    # Resumen compacto y fiel del JSON real de `dee doctor` (evita cortar el JSON a la mitad)
+    try:
+        doctor_payload = json.loads("\n".join(doctor_lines))
+        doctor_checks = doctor_payload.get("checks") or {}
+        ok_checks = [k for k, v in doctor_checks.items() if isinstance(v, dict) and v.get("ok")]
+        doctor_resumen = [
+            '{ "ok": ' + str(bool(doctor_payload.get("ok"))).lower()
+            + ', "engine": "' + str(doctor_payload.get("engine", "DEE")) + '"'
+            + ', "checks_ok": "' + f'{len(ok_checks)}/{len(doctor_checks)}' + '"'
+            + ', "elapsed_ms": ' + str(doctor_payload.get("elapsed_ms")) + ' }'
+        ]
+    except Exception:
+        doctor_resumen = doctor_lines[:2]
     lines_08 = [
         "$ python3 scripts/smoke_test.py",
         *smoke_summary[:13],
         "",
-        "$ python3 -m unittest discover -s tests   # 25 tests de plataforma",
+        "$ python3 -m unittest discover -s tests   # 29 tests de plataforma",
         "",
         "$ python3 cli/dee_cli.py doctor",
-        *doctor_lines[:5],
+        *doctor_resumen,
     ]
     render_terminal_png(
         SCREENSHOTS_DIR / "08_terminal_suite_12_tests.png",
@@ -338,7 +352,7 @@ def main() -> None:
         [
             (
                 SCREENSHOTS_DIR / "08_terminal_suite_12_tests.png",
-                "Desde la terminal podés ejecutar la suite smoke test punto py con doce pruebas reales, los veinticinco tests de plataforma y el comando doctor de la CLI industrial.",
+                "Desde la terminal podés ejecutar la suite smoke test punto py con doce pruebas reales, los veintinueve tests de plataforma y el comando doctor de la CLI industrial.",
             ),
             (
                 SCREENSHOTS_DIR / "02_dee_escuadron_6_agentes_3d.png",

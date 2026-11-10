@@ -135,15 +135,19 @@ Para superar de forma comprobable a las 11 alternativas en hardware modesto (Lin
 ### 4.2 Evidencia ejecutada en esta pasada
 | Verificación | Comando | Resultado real |
 |---|---|---|
-| Suite unitaria, integración, seguridad, E2E, estrés y benchmarks | `python3 -m unittest discover -s tests -v` | **25/25 OK** (≈30 s) |
+| Suite unitaria, integración, seguridad, E2E, estrés y benchmarks | `python3 -m unittest discover -s tests -v` | **29/29 OK** (≈40 s) |
 | Smoke test Dee | `python3 scripts/smoke_test.py` | **12/12 OK** con `DISPLAY=:1` |
 | Build de producción del frontend | `cd frontend && npm run build` | **OK** (1612 módulos; chunks separados: `three` 498,42 kB, app 358,11 kB, `iconos` 26,52 kB, `react` 4,21 kB; sin advertencia de chunk >500 kB) |
 | Diagnóstico integral | `python3 cli/dee_cli.py doctor` | **OK**; listos: `openai_compatible`, `ollama`, `local_deterministic`; sin credenciales: Gemini, Anthropic, Mistral, Qwen, Cloudflare; inalcanzable: `llamacpp` |
 | Benchmarks | `python3 cli/dee_cli.py benchmark` | Artefacto en `data/evidence/latest_benchmark.json` |
 | Sintaxis Python | `python3 -m compileall -q core cli node_agent tests skills scripts` | **OK** |
 | Sintaxis Node/Electron | `node --check desktop/*.cjs scripts/capturar_screenshots.cjs` | **OK** |
-| Captura real de la app Electron | `npm run capturas` sobre Xvfb `:99` | **6/6 capturas** de 1439x899 desde `webContents.capturePage()` con Electron 44.7.0 |
-| Suite tras el reintento X11 del Escenario C | `python3 -m unittest discover -s tests` | **25/25 OK** |
+| Captura real de la app Electron | `npm run capturas` sobre Xvfb `:99` | **6/6 capturas** de 1439x899 desde `webContents.capturePage()` con Electron 44.10.2 |
+| Ventana Electron en el escritorio físico | `DISPLAY=:1 ./node_modules/.bin/electron .` + `xwininfo`/`ffmpeg x11grab` | Ventana nativa 1366x768 abierta en `:1` (2726x768) mostrando solo el saludo inicial, sin terminal ni voz automática |
+| Driver CDP real | Chrome 155 en `:9222` + `POST /api/cdp {accion: map}` | `motor: cdp-websocket`, 80 refs `@n1..@n80` del blog real en 393 ms |
+| Sensores | `POST /api/sensory/ears` y `/api/sensory/eyes` con `enabled: true/false` | **4/4 respuestas 200** (`active: true/false`), sin tracebacks |
+| Tests del cliente CDP | `python3 -m unittest tests.test_07_cdp_driver` | **4/4 OK** (handshake/framing WebSocket, mapa CDP, fallback HTTP, URL inválida) |
+| Suite tras el reintento X11 del Escenario C | `python3 -m unittest discover -s tests` | **29/29 OK** |
 | Sintaxis de scripts | `bash -n scripts/*.sh bin/*.sh` | **OK** |
 | CLI industrial | `dee init/status/agent/team/task/node/memory/model/skill/mcp/logs/doctor/benchmark/security audit` | Comandos ejecutados; creación/ejecución/cancelación e instalación de skill probadas con datos temporales y limpiadas después |
 
@@ -160,8 +164,8 @@ Medición cruda de la última corrida de benchmark en esta máquina (2 vCPU, sin
 ### 4.3 Limitaciones honestas (no equivalen a funcionalidad verificada)
 1. **Distribución real entre máquinas**: por defecto `barto` y `manager1` apuntan a `127.0.0.1:8731` y `127.0.0.1:8730`. El Escenario D verifica aislamiento por workbench, firma HMAC y consolidación, pero **no prueba tres hosts físicos** salvo que se configuren `DEE_NODE_BARTO_HOST/PORT` y `DEE_NODE_MANAGER1_HOST/PORT` hacia daemons reales.
 2. **Proveedores cloud**: Gemini, Anthropic, Mistral, Qwen y Cloudflare no se probaron en vivo porque faltan credenciales. Las pruebas usan `local_deterministic` como fallback; no se afirma generación real en esos servicios.
-3. **Computer Use**: el lazo X11 se verificó con `DISPLAY=:1`. La entrada en Wayland **no** está verificada en esta corrida.
-4. **Browser automation**: el smoke test reportó `CDP activo=False` (no había sesión Chrome con depuración remota). El Escenario C verificó DOM contra un portal HTTP local, no contra Chrome real.
+3. **Computer Use**: el lazo X11 se verificó con `DISPLAY=:1` y la ventana Electron se abrió y capturó en ese mismo escritorio físico. La entrada en Wayland **no** está verificada en esta corrida.
+4. **Browser automation**: el driver ahora habla CDP real por WebSocket contra Chrome 155 (`:9222`), verificado con 80 refs `@n1..@n80` sobre el blog en producción. Si no hay Chrome con depuración remota, cae al parser HTTP y lo declara en el campo `motor: "http-fallback"`; en ese caso el smoke sigue reportando `CDP activo=False`.
 5. **Pruebas sintéticas**: DSP de voz y visión PGM están etiquetadas explícitamente como `[SYNTHETIC_UNIT]`; no sustituyen captura de hardware real.
 6. **`dee stop`**: solo termina el proceso iniciado por `dee start` mediante su PID file; no mata procesos ajenos que ocupen `:8091`.
 7. **Frontend**: resuelto con `manualChunks` en `frontend/vite.config.ts` (Three.js, React e iconos separados); el build ya no emite la advertencia de chunk >500 kB.
@@ -173,3 +177,13 @@ Medición cruda de la última corrida de benchmark en esta máquina (2 vCPU, sin
 3. **HUD (`frontend/src/App.tsx`)**: se eliminó el contenedor flotante inferior que tapaba al personaje; ahora hay una barra de comando compacta con el arsenal de habilidades plegable. Al abrir, Dee solo saluda (`¿Necesitás ayuda con algo?`): la terminal y la voz del demonio autónomo ya no se despliegan solas hasta que Facu interactúa.
 4. **Centro Operativo**: el modal sincroniza la sección pedida desde la barra lateral (antes podía abrir siempre `Escuadrón`).
 5. **Capturas y README**: se reemplazaron las capturas viejas (marca `KRONOS`) por 6 capturas reales de la ventana Electron y 2 renders de terminal con salida real; `scripts/generate_tutorials_media.py` ya no copia imágenes `kronos_*` ni usa rutas absolutas ajenas.
+
+### 4.5 Driver CDP real, sensores y dependencias locales (misma pasada)
+1. **CDP de verdad (`core/computer_use/cdp_ws.py`, nuevo)**: el “Driver CDP” anterior sólo hacía `urllib` + parseo de HTML crudo, así que no veía nada generado por JavaScript. Se implementó un cliente WebSocket RFC 6455 en stdlib (handshake, frames enmascarados, ping/pong, close) y `CDPSession` con `Runtime.evaluate` y `Page.navigate`. `CDPBrowserDriver.inspect_interactive_map` ahora usa CDP como camino principal, devuelve `motor: "cdp-websocket"` y cae a `http-fallback` (declarando el error) sólo si no hay pestaña CDP.
+   - Verificación real: Chrome 155 con `--remote-debugging-port=9222`; el blog en producción devolvió 80 refs `@n1..@n80` en 393 ms, incluyendo enlaces del header generados por la app.
+   - Verificación de JavaScript: una página local con un `<button>` agregado por `setTimeout` apareció como `@n4` por CDP (`4` elementos) mientras el fallback HTTP devolvió `3`. Ese es exactamente el caso que antes se perdía.
+2. **HUD**: el panel del mapa ahora muestra un badge con el motor real (`CDP EN VIVO` / `RESPALDO HTTP`) y la latencia medida.
+3. **Sensores (`core/main.py`)**: `/api/sensory/eyes` con `enabled: true` fallaba con `TypeError: DeeEyes.authorize() got an unexpected keyword argument 'continuous'`, y apagar los sensores llamaba a `EYES.revoke()` / `EARS.revoke()`, métodos inexistentes. Corregido a `watchdog=` y `shutdown()`; las cuatro combinaciones (oídos/ojos, on/off) responden `200` y sin tracebacks.
+4. **Dependencia oculta**: `Dee-Bot-Agents/node_modules` era un symlink a `/home/facu/AnyModelBot/node_modules`, por lo que la ventana se abría con un Electron ajeno al proyecto. Se reemplazó por una instalación local real (`npm install` → Electron 44.10.2) y se agregó `package-lock.json`; `readlink -f node_modules/.bin/electron` ahora apunta dentro del repositorio.
+5. **Ventana en el escritorio físico**: `DISPLAY=:1 ./node_modules/.bin/electron .` abrió la ventana nativa 1366x768 en la pantalla real de 2726x768, mostrando únicamente el saludo `¡Hola Facu! ¿Necesitás ayuda con algo?`, con el panel de terminal cerrado.
+6. **Tests nuevos (`tests/test_07_cdp_driver.py`)**: 4 pruebas deterministas que levantan un servidor WebSocket CDP simulado y un portal HTTP local para cubrir handshake/framing, mapeo por CDP, fallback HTTP y rechazo de URL no-`ws`.

@@ -27,12 +27,49 @@ from pathlib import Path
 from typing import Any
 
 from ..events import BUS
+from .cdp_ws import CDPSession, CDPWebSocketError
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 DATA_DIR = ROOT_DIR / "data"
 COOKIE_FILE = DATA_DIR / "dee_browser_cookies.txt"
 CHROME_PROFILE_DIR = DATA_DIR / "chrome_cdp_profile"
 WEB_SHOT_PATH = Path("/tmp/dee_web_screenshot.png")
+
+# Extracción real por DevTools Protocol: se ejecuta DENTRO de la página ya renderizada,
+# así que incluye nodos creados por JavaScript que el HTML crudo no contiene.
+CDP_MAP_EXPRESSION = r"""
+(() => {
+  const toSelector = (el) => {
+    const tag = el.tagName.toLowerCase();
+    if (el.id) return '#' + el.id;
+    if (el.getAttribute('name')) return tag + "[name='" + el.getAttribute('name') + "']";
+    let idx = 1;
+    let prev = el;
+    while ((prev = prev.previousElementSibling)) {
+      if (prev.tagName === el.tagName) idx++;
+    }
+    return tag + ':nth-of-type(' + idx + ')';
+  };
+  const nodes = Array.from(document.querySelectorAll('a,button,input,select,textarea')).slice(0, 80);
+  const elementos = nodes.map((el, i) => ({
+    ref: '@n' + (i + 1),
+    tag: el.tagName.toLowerCase(),
+    tipo: (el.getAttribute('type') || el.tagName).toLowerCase(),
+    selector: toSelector(el),
+    nombre: el.getAttribute('name') || el.id || el.getAttribute('aria-label') || '',
+    placeholder: el.getAttribute('placeholder') || '',
+    href: el.href || '',
+    texto: (el.innerText || el.value || el.getAttribute('aria-label') || '')
+      .replace(/\s+/g, ' ').trim().slice(0, 90),
+  }));
+  return JSON.stringify({
+    titulo: document.title,
+    url: location.href,
+    readyState: document.readyState,
+    elementos,
+  });
+})()
+"""
 
 
 class _InteractiveMapParser(HTMLParser):
@@ -166,13 +203,95 @@ class CDPBrowserDriver:
             "estado": self.list_cdp_targets(),
         }
 
+    def _pick_page_target(self, url: str) -> dict[str, Any] | None:
+        """Elige la pestaña CDP a usar: la que ya está en el mismo sitio o la primera disponible."""
+        info = self.list_cdp_targets()
+        if not info.get("cdp_activo"):
+            return None
+        tabs = [t for t in (info.get("pestanas") or []) if t.get("ws_debugger")]
+        if not tabs:
+            return None
+        requested = urllib.parse.urlparse(url)
+        for tab in tabs:
+            tab_url = urllib.parse.urlparse(str(tab.get("url") or ""))
+            if tab_url.netloc and tab_url.netloc == requested.netloc:
+                return tab
+        return tabs[0]
+
+    def map_via_cdp(self, url: str) -> dict[str, Any]:
+        """Mapea el DOM renderizado en Chrome real vía WebSocket CDP (incluye nodos creados por JS)."""
+        target = self._pick_page_target(url)
+        if not target:
+            raise CDPWebSocketError("No hay pestaña CDP abierta en :9222")
+        session = CDPSession(str(target["ws_debugger"]))
+        try:
+            current = str(target.get("url") or "")
+            needs_nav = not current.startswith(("http://", "https://")) or current.split("#")[0] != url.split("#")[0]
+            if needs_nav:
+                session.navigate(url, timeout=8.0)
+            time.sleep(0.35)  # deja correr el JS diferido de la página antes de mapear
+            raw = session.evaluate(CDP_MAP_EXPRESSION)
+            payload = json.loads(raw) if isinstance(raw, str) and raw else {}
+            return {
+                "titulo": payload.get("titulo") or url,
+                "url": payload.get("url") or url,
+                "elementos": payload.get("elementos") or [],
+                "navegada": bool(needs_nav),
+            }
+        finally:
+            session.close()
+
+    def _publicar_mapa(self, url: str, total: int, dur_ms: float, motor: str) -> None:
+        BUS.publish(
+            "terminal_exec_done",
+            {
+                "id": f"cdp_map_{int(time.time() * 1000)}",
+                "cmd": f"dee-cdp-driver --read-map {url} ({motor})",
+                "target": "facu",
+                "ok": True,
+                "exit_code": 0,
+                "stdout": (
+                    f"🌐 Mapa DOM extraído vía {motor} ({dur_ms} ms): {total} elementos interactivos "
+                    f"(@n1..@n{total}) · Cookies en sesión: {len(self.cookie_jar)}"
+                ),
+                "stderr": "",
+                "duration_ms": dur_ms,
+                "ts": round(time.time(), 2),
+            },
+        )
+
     def inspect_interactive_map(self, url: str, method: str = "GET", form_data: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Carga una URL con persistencia de cookies y devuelve el mapa `@ref` de todos sus controles interactivos."""
+        """Devuelve el mapa `@ref` de controles interactivos.
+
+        Camino principal: Chrome real por WebSocket CDP (`Runtime.evaluate` sobre el DOM
+        ya renderizado, así entran botones/links creados por JavaScript).
+        Respaldo: parseo del HTML crudo vía HTTP si no hay pestaña CDP o falla el socket.
+        """
         clean_url = (url or "").strip()
         if not clean_url.startswith(("http://", "https://")):
             clean_url = "https://" + clean_url
 
         t0 = time.time()
+        cdp_error = ""
+        try:
+            cdp_map = self.map_via_cdp(clean_url)
+            dur_ms = round((time.time() - t0) * 1000.0, 1)
+            self._publicar_mapa(cdp_map["url"], len(cdp_map["elementos"]), dur_ms, motor="cdp-websocket")
+            return {
+                "ok": True,
+                "motor": "cdp-websocket",
+                "url": cdp_map["url"],
+                "status_code": 200,
+                "titulo": cdp_map["titulo"],
+                "latencia_ms": dur_ms,
+                "cookies_activas": len(self.cookie_jar),
+                "elementos_interactivos": cdp_map["elementos"],
+                "pestana_cdp": True,
+                "navegada": cdp_map.get("navegada", False),
+            }
+        except Exception as exc:
+            cdp_error = str(exc)
+
         try:
             encoded_data = None
             if method.upper() == "POST" and form_data:
@@ -198,22 +317,11 @@ class CDPBrowserDriver:
             title = " ".join(title_m.group(1).split())[:140] if title_m else final_url
             dur_ms = round((time.time() - t0) * 1000.0, 1)
 
-            BUS.publish(
-                "terminal_exec_done",
-                {
-                    "id": f"cdp_map_{int(time.time() * 1000)}",
-                    "cmd": f"dee-cdp-driver --read-map {final_url}",
-                    "target": "facu",
-                    "ok": True,
-                    "exit_code": 0,
-                    "stdout": f"🌐 Mapa DOM extraído ({dur_ms} ms): {len(mapper.elements)} elementos interactivos (@n1..@n{len(mapper.elements)}) · Cookies en sesión: {len(self.cookie_jar)}",
-                    "stderr": "",
-                    "duration_ms": dur_ms,
-                    "ts": round(time.time(), 2),
-                },
-            )
+            self._publicar_mapa(final_url, len(mapper.elements), dur_ms, motor="http-fallback")
             return {
                 "ok": True,
+                "motor": "http-fallback",
+                "cdp_error": cdp_error,
                 "url": final_url,
                 "status_code": status_code,
                 "titulo": title,

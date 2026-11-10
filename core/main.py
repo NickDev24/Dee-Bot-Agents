@@ -465,12 +465,12 @@ class DeeMasterHTTPHandler(BaseHTTPRequestHandler):
             is_active = body.get("enabled") if "enabled" in body else body.get("active", True)
             if is_active:
                 return self._send_json(200, EARS.authorize(body.get("duration_s")))
-            return self._send_json(200, EARS.revoke())
+            return self._send_json(200, EARS.shutdown())
 
         if path == "/api/sensory/eyes":
             if body.get("capture_now") or body.get("scan_once"):
                 if not EYES.is_allowed():
-                    EYES.authorize(duration_s=1800, continuous=False)
+                    EYES.authorize(duration_s=1800)
                 return self._send_json(200, EYES.capture(source=body.get("source"), force=True))
             is_active = body.get("enabled") if "enabled" in body else body.get("active", True)
             if is_active:
@@ -479,10 +479,10 @@ class DeeMasterHTTPHandler(BaseHTTPRequestHandler):
                     200,
                     EYES.authorize(
                         duration_s=float(body.get("duration_s") or 3600),
-                        continuous=True,
+                        watchdog=bool(body.get("watchdog") or body.get("vigil_mode")),
                     ),
                 )
-            return self._send_json(200, EYES.revoke())
+            return self._send_json(200, EYES.shutdown())
 
         if path == "/api/sensory/enroll":
             kind = body.get("kind", "voice")
@@ -842,7 +842,7 @@ def start_server(host: str = HOST, port: int = PORT) -> None:
     AUTONOMOUS_DAEMON.start()
 
     print(
-        f"⚡ Dee-Bot-Agents v4.0 Supreme listening on http://{host}:{port} "
+        f"⚡ Dee-Bot-Agents — DEE (Distributed Emergent Engine) listening on http://{host}:{port} "
         f"(Frontend={'READY' if FRONTEND_DIST.exists() else 'API-ONLY'})",
         flush=True,
     )
