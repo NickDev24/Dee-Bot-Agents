@@ -1,0 +1,14 @@
+{
+  "nombre_sistema": "Dee-Bot-Agents v4.0 Supreme",
+  "comandante": "Facu Cercuetti",
+  "github": "https://github.com/NickDev24/Dee-Bot-Agents",
+  "blog": "https://facucercuetti.online/blog",
+  "idioma": "es-AR (Español Argentino Completo)",
+  "modo_enrutamiento": "inteligente",
+  "gobernador_fps_activo": 30,
+  "gobernador_fps_reposo": 8,
+  "auto_desplegar_terminal": true,
+  "verificacion_voz_obligatoria": true,
+  "max_saltos_envelope": 4,
+  "directorio_trabajo": "/home/facu/investigar-agentes-autonomos/Dee-Bot-Agents"
+}

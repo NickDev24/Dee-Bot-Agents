@@ -1,0 +1,52 @@
+[
+  {
+    "id": "mcp-dee-filesystem",
+    "nombre": "MCP Sistema de Archivos Atómico (:8730)",
+    "tipo": "mcp_http",
+    "endpoint": "http://127.0.0.1:8730/health",
+    "comando": "python3 node_agent/gateway.py",
+    "activo": true,
+    "autor": "Facu Cercuetti (@NickDev24)",
+    "descripcion": "Lectura/escritura atómica con bloqueo de concurrencia y validación SHA-256."
+  },
+  {
+    "id": "mcp-dee-workbench",
+    "nombre": "MCP Workbench de Procesos POSIX (:8731)",
+    "tipo": "mcp_http",
+    "endpoint": "http://127.0.0.1:8731/health",
+    "comando": "python3 node_agent/bench.py",
+    "activo": true,
+    "autor": "Facu Cercuetti (@NickDev24)",
+    "descripcion": "Ejecución aislada en grupos de procesos con limpieza anti-zombies."
+  },
+  {
+    "id": "plugin-sensory-alsa-pgm",
+    "nombre": "Plugin Sensorial ALSA + Visión PGM 30x30",
+    "tipo": "nativo_python",
+    "endpoint": "http://127.0.0.1:8091/api/status",
+    "comando": "core.sensory",
+    "activo": true,
+    "autor": "Facu Cercuetti (@NickDev24)",
+    "descripcion": "Doble aplauso ALSA, biometría vocal 12-D MFCC y filtro de movimiento multi-cámara."
+  },
+  {
+    "id": "plugin-grok-bundle",
+    "nombre": "Bundle de Reglas & Orquestación Grok-Bot",
+    "tipo": "bundle_local",
+    "endpoint": "/home/facu/investigar-agentes-autonomos/grok-bot-cli/artifact/plugin.json",
+    "comando": "RouteEnvelope hop<4 + Smart Dispatcher",
+    "activo": true,
+    "autor": "Facu Cercuetti (@NickDev24)",
+    "descripcion": "Enrutamiento anti-bucles y poda dinámica de herramientas (78% ahorro de tokens)."
+  },
+  {
+    "id": "plugin-hyperframes-video",
+    "nombre": "Motor de Renderizado de Video FFmpeg / HyperFrames",
+    "tipo": "cli_plugin",
+    "endpoint": "/usr/bin/ffmpeg",
+    "comando": "ffmpeg -version",
+    "activo": true,
+    "autor": "Facu Cercuetti (@NickDev24)",
+    "descripcion": "Síntesis de tutoriales MP4 narrados con voz neural es-AR y capturas automáticas."
+  }
+]

@@ -7,6 +7,8 @@ interface CyberBirdCanvasProps {
   currentEmotion: JarvisEmotion;
   lipSyncData: VoiceLipSyncData;
   cameraPreset?: 'default' | 'closeup' | 'overview' | 'fullbody';
+  agentColor?: string;
+  showSquadFormation?: boolean;
   onSelectTask?: (taskId: string) => void;
   nodeScale?: number;
   orbitRadius?: number;
@@ -19,6 +21,8 @@ export const CyberBirdCanvas: React.FC<CyberBirdCanvasProps> = ({
   currentEmotion,
   lipSyncData,
   cameraPreset = 'default',
+  agentColor = '#00f0ff',
+  showSquadFormation = false,
   onSelectTask,
   nodeScale = 1.0,
   orbitRadius = 2.4,
@@ -106,18 +110,32 @@ export const CyberBirdCanvas: React.FC<CyberBirdCanvasProps> = ({
     }
   }, [orbitAngleOffset]);
 
+  // Update Active Agent Color Theme
+  useEffect(() => {
+    if (sceneRef.current) {
+      sceneRef.current.setAgentColor(agentColor);
+    }
+  }, [agentColor]);
+
+  // Update 3D Squad Formation (Dee + 5 Subagentes Iguales de Distinto Color)
+  useEffect(() => {
+    if (sceneRef.current) {
+      sceneRef.current.setShowSquadFormation(showSquadFormation);
+    }
+  }, [showSquadFormation]);
+
   return (
     <div className="relative w-full h-full overflow-hidden select-none bg-[#02050b]">
-      {/* 1. Real-time Three.js WebGL Canvas Container */}
+      {/* 1. Escenario WebGL 3D en Tiempo Real */}
       <div 
         ref={mountRef} 
         className="w-full h-full cursor-grab active:cursor-grabbing" 
       />
 
-      {/* 2. Interactive Hint Pill */}
-      <div className="absolute top-20 right-6 pointer-events-none hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-slate-950/70 border border-cyan-500/30 font-mono text-[10px] text-cyan-400/80 shadow-[0_0_15px_rgba(0,240,255,0.2)]">
+      {/* 2. Píldora Informativa en Español */}
+      <div className="absolute bottom-36 right-6 pointer-events-none hidden xl:flex items-center gap-2 px-3 py-1 rounded-full bg-slate-950/75 border border-cyan-500/30 font-mono text-[10px] text-cyan-300 shadow-[0_0_15px_rgba(0,240,255,0.2)]">
         <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-        <span>THREE.JS 3D MESH REAL · ARRASTRA PARA ORBITAR</span>
+        <span>MOTOR 3D EN TIEMPO REAL · ARRASTRÁ PARA ORBITAR LA CÁMARA</span>
       </div>
     </div>
   );

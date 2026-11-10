@@ -19,14 +19,18 @@ import threading
 import time
 from pathlib import Path
 
+from ..computer_use import CDP_DRIVER, PC_CONTROLLER
 from ..events import BUS, CHARACTER, TURN_CTRL
 from ..security.sentinel import SENTINEL
 from ..sensory import EARS, EYES, SensorySystem, emit_speech
 from ..sensory.butler import BUTLER
 from ..workers.cluster_client import CLUSTER, RouteEnvelope
 from .llm_pool import LLM_POOL
+from .local_rag import LOCAL_RAG
 from .memory_md import MEMORY_STORE
+from .relay_engine import RELAY_ENGINE
 from .routines import RoutinesEngine
+from .worktree_forge import WORKTREE_FORGE
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 SQUAD_FILE = ROOT_DIR / "config" / "squad.json"
@@ -63,8 +67,52 @@ class DeeCognitiveEngine:
     # -------------------------------------------------------------------------
     # 1. ZERO-TOKEN DETERMINISTIC FAST-PATH (< 1 ms, 0 LLM tokens)
     # -------------------------------------------------------------------------
-    def _try_zero_token_fast_path(self, text: str, speaker_verified: bool = True) -> dict | None:
+    def _try_zero_token_fast_path(self, text: str, speaker_verified: bool = True, raw_text: str = "") -> dict | None:
         norm = " ".join(text.lower().replace(",", " ").replace("!", " ").replace("?", " ").split())
+        raw_clean = (raw_text or text).strip()
+
+        # 0. Direct Crystallized Skill Execution (/auditar-nodos, /docker-ops, /benchmark-cpu, etc.)
+        skill_match = re.match(r"^/([a-z0-9_-]+)(?:\s+(.*))?$", raw_clean, flags=re.I)
+        if skill_match:
+            sid = skill_match.group(1).lower()
+            skills = MEMORY_STORE.list_skills()
+            sk = skills.get(sid)
+            if sk and sk.get("cmd"):
+                t0 = time.time()
+                action_state = sk.get("action", "trabajando")
+                emotion_state = sk.get("emotion", "curioso")
+                CHARACTER.transition(
+                    action=action_state,
+                    emotion=emotion_state,
+                    note=f"Ejecutando Skill /{sid}: {sk['name']}",
+                    fps_target=30,
+                )
+                if sid == "limpiar-ram":
+                    BUTLER.sweep()
+                exec_res = CLUSTER.execute_shell(cmd=sk["cmd"], target_node="facu", timeout_s=20.0)
+                LLM_POOL.total_tokens_saved += 550
+                first_lines = [
+                    ln.strip()
+                    for ln in (exec_res.get("stdout") or "").splitlines()
+                    if ln.strip() and not ln.strip().startswith("===")
+                ]
+                summary_line = " · ".join(first_lines[:2])[:180] if first_lines else "ejecución completada sin errores"
+                reply = (
+                    f"Skill /{sid} ({sk['name']}) ejecutada en vivo en la terminal ({exec_res.get('duration_ms', 0)} ms): "
+                    f"{summary_line}."
+                )
+                return {
+                    "reply": reply,
+                    "mode": "skill_fast_path",
+                    "skill_id": sid,
+                    "latency_ms": round((time.time() - t0) * 1000.0, 2),
+                    "emotion": emotion_state,
+                    "action": action_state,
+                    "agent": "hermes_local" if action_state == "trabajando" else "dee_core",
+                    "zero_token": True,
+                    "tool_result": exec_res,
+                    "data": exec_res,
+                }
 
         # A. Kill-Switch
         if SENTINEL.is_kill_switch(norm):
@@ -135,11 +183,30 @@ class DeeCognitiveEngine:
                 f"Acá tenés el estado real medido, Facu (Nodos online: {online_cnt}/3): tu nodo maestro tiene {f_info['ram_pct']}% de RAM en uso, "
                 f"{f_info['cpu_pct']}% de CPU y {f_info['disk_free_gb']} gigas libres en disco. {b_str}, y {m_str}."
             )
+            dur_ms = round((time.time() - t0) * 1000.0, 2)
+            BUS.publish(
+                "terminal_exec_done",
+                {
+                    "id": f"tel_{int(time.time() * 1000)}",
+                    "cmd": "dee-cli status --cluster (Zero-Token Fast-Path)",
+                    "target": "facu",
+                    "ok": True,
+                    "exit_code": 0,
+                    "stdout": (
+                        f"[FACU MASTER] Online={f_info['online']} | CPU={f_info['cpu_pct']}% | RAM={f_info['ram_used_gb']}/{f_info['ram_total_gb']} GB ({f_info['ram_pct']}%) | Disco Libre={f_info['disk_free_gb']} GB\n"
+                        f"[BARTO WORKER] Online={b_info['online']} | CPU={b_info['cpu_pct']}% | RAM={b_info['ram_used_gb']}/{b_info['ram_total_gb']} GB\n"
+                        f"[MANAGER1 WORKER] Online={m_info['online']} | CPU={m_info['cpu_pct']}% | RAM={m_info['ram_used_gb']}/{m_info['ram_total_gb']} GB"
+                    ),
+                    "stderr": "",
+                    "duration_ms": dur_ms,
+                    "ts": round(time.time(), 2),
+                },
+            )
             LLM_POOL.total_tokens_saved += 600
             return {
                 "reply": reply,
                 "mode": "fast_path",
-                "latency_ms": round((time.time() - t0) * 1000.0, 2),
+                "latency_ms": dur_ms,
                 "emotion": "curioso",
                 "action": "manipular_datos",
                 "agent": "dee_core",
@@ -181,6 +248,74 @@ class DeeCognitiveEngine:
                 "agent": "rakazo_memory",
                 "zero_token": True,
                 "data": st,
+            }
+
+        # F. Native X11 PC Control (Ventanas abiertas, posición del mouse, captura de escritorio)
+        if any(k in norm for k in ("ventanas abiertas", "control pc", "estado de pantalla", "capturar escritorio")):
+            pc_st = PC_CONTROLLER.full_pc_status()
+            if "capturar" in norm:
+                shot = PC_CONTROLLER.capture_desktop_screenshot()
+                pc_st["captura"] = shot
+            wins = pc_st.get("ventanas_abiertas", [])
+            scr = pc_st.get("pantalla", {})
+            titulos = ", ".join(w["titulo"][:35] for w in wins[:4]) or "ninguna ventana secundaria"
+            reply = (
+                f"Control X11 activo en {scr.get('width')}x{scr.get('height')} (cursor en X={scr.get('cursor_x')}, Y={scr.get('cursor_y')}). "
+                f"Detecté {len(wins)} ventanas abiertas ({titulos}) y volumen al {pc_st.get('volumen_pct')}%."
+            )
+            LLM_POOL.total_tokens_saved += 550
+            return {
+                "reply": reply,
+                "mode": "pc_control_fast_path",
+                "emotion": "orgullo",
+                "action": "trabajando",
+                "agent": "hermes_local",
+                "zero_token": True,
+                "data": pc_st,
+            }
+
+        # G. Zero-RAM SQLite FTS5 Local RAG Search (/rag <consulta>)
+        if raw_clean.lower().startswith("/rag "):
+            q = raw_clean[5:].strip()
+            rag_res = LOCAL_RAG.query(q, top_k=4)
+            hits = rag_res.get("resultados", [])
+            LLM_POOL.total_tokens_saved += 600
+            if hits:
+                top = hits[0]
+                reply = (
+                    f"Búsqueda RAG 0-RAM completada en {rag_res['latencia_ms']} ms ({len(hits)} hallazgos). "
+                    f"Archivo principal: `{top['ruta']}` (bloque {top['bloque']}): {top['fragmento'][:180]}..."
+                )
+            else:
+                reply = f"Busqué '{q}' en el índice RAG SQLite en {rag_res['latencia_ms']} ms sin coincidencias exactas."
+            return {
+                "reply": reply,
+                "mode": "rag_fast_path",
+                "emotion": "curioso",
+                "action": "manipular_datos",
+                "agent": "rakazo_memory",
+                "zero_token": True,
+                "data": rag_res,
+            }
+
+        # H. CDP DOM Interactive Map (/cdp <url>)
+        if raw_clean.lower().startswith("/cdp "):
+            target_url = raw_clean[5:].strip()
+            cdp_res = CDP_DRIVER.inspect_interactive_map(target_url)
+            els = cdp_res.get("elementos_interactivos", [])
+            LLM_POOL.total_tokens_saved += 550
+            reply = (
+                f"Driver CDP inspeccionó `{cdp_res.get('url', target_url)}` en {cdp_res.get('latencia_ms', 0)} ms: "
+                f"extraje {len(els)} controles interactivos (@n1..@n{len(els)}) y {cdp_res.get('cookies_activas', 0)} cookies de sesión."
+            )
+            return {
+                "reply": reply,
+                "mode": "cdp_fast_path",
+                "emotion": "curioso",
+                "action": "manipular_datos",
+                "agent": "manager_scout",
+                "zero_token": True,
+                "data": cdp_res,
             }
 
         return None
@@ -331,7 +466,11 @@ class DeeCognitiveEngine:
         BUS.publish("chat_message", **user_msg)
 
         # Step 1: Try Zero-Token Fast-Path (<1ms)
-        fast = self._try_zero_token_fast_path(expanded_text, speaker_verified=speaker_verified)
+        fast = self._try_zero_token_fast_path(
+            expanded_text,
+            speaker_verified=speaker_verified,
+            raw_text=user_text,
+        )
         if fast:
             if speak_reply:
                 emit_speech(fast["reply"], emotion=fast["emotion"], action=fast["action"], turn_id=turn_id)

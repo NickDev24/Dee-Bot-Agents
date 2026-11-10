@@ -1217,6 +1217,9 @@ export class CyberBird3D {
         heightOffset: -0.05,
       });
     });
+
+    // Keep 3D scene focused EXCLUSIVELY on Dee by default (Grok-Bot / Meta-Muse clean aesthetic)
+    this.neuralNodesGroup.visible = false;
   }
 
   // =========================================================================
@@ -1224,17 +1227,32 @@ export class CyberBird3D {
   // =========================================================================
   private buildHolographicTerminals() {
     this.holoScreensGroup.visible = false;
-    const kbGeo = new THREE.PlaneGeometry(1.6, 0.7);
+
+    // Holographic Laser Keyboard under Dee's hands
+    const kbGeo = new THREE.PlaneGeometry(1.5, 0.55, 12, 4);
     kbGeo.rotateX(-Math.PI * 0.35);
     const kbMat = new THREE.MeshBasicMaterial({
       color: 0x00f0ff,
       wireframe: true,
       transparent: true,
-      opacity: 0.5,
+      opacity: 0.65,
     });
     this.holoKeyboardMesh = new THREE.Mesh(kbGeo, kbMat);
-    this.holoKeyboardMesh.position.set(0, -0.5, 0.9);
+    this.holoKeyboardMesh.position.set(0, -0.45, 0.92);
     this.holoScreensGroup.add(this.holoKeyboardMesh);
+
+    // Floating Holographic Code Projection Arc in front of Dee when executing tasks
+    const screenGeo = new THREE.PlaneGeometry(1.35, 0.58);
+    const screenMat = new THREE.MeshBasicMaterial({
+      color: 0x10b981,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.32,
+      side: THREE.DoubleSide,
+    });
+    const holoScreen = new THREE.Mesh(screenGeo, screenMat);
+    holoScreen.position.set(0, 0.08, 1.05);
+    this.holoScreensGroup.add(holoScreen);
   }
 
   private buildHolographicDataOrb() {
@@ -1709,6 +1727,30 @@ export class CyberBird3D {
         (this.shadowMesh.material as THREE.MeshBasicMaterial).opacity = 0.65 - hoverY * 0.1;
         break;
       }
+    }
+  }
+
+  public setAgentColorTheme(primaryHex: string) {
+    const targetColor = new THREE.Color(primaryHex);
+    this.bodyGroup.traverse((obj) => {
+      if ((obj as THREE.Mesh).isMesh) {
+        const mesh = obj as THREE.Mesh;
+        const mat = mesh.material as THREE.Material;
+        if (
+          mat &&
+          mat.type === 'MeshBasicMaterial' &&
+          mesh !== this.leftEyeMesh &&
+          mesh !== this.rightEyeMesh
+        ) {
+          const basic = mat as THREE.MeshBasicMaterial;
+          if (!basic.map) {
+            basic.color.copy(targetColor);
+          }
+        }
+      }
+    });
+    if (this.holoKeyboardMesh) {
+      (this.holoKeyboardMesh.material as THREE.MeshBasicMaterial).color.copy(targetColor);
     }
   }
 }

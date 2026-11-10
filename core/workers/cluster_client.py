@@ -276,6 +276,17 @@ class ClusterManager:
         if not env.can_forward():
             return {"ok": False, "error": "RouteEnvelope max_hops exceeded"}
 
+        exec_id = f"exec_{int(time.time() * 1000)}"
+        event_bus.publish(
+            "terminal_exec_start",
+            {
+                "id": exec_id,
+                "cmd": command,
+                "target": target_node,
+                "ts": round(time.time(), 2),
+            },
+        )
+
         nodes_cfg = self.config.get("nodes", {})
         ncfg = nodes_cfg.get(target_node, {})
 
@@ -297,7 +308,22 @@ class ClusterManager:
                         method="POST",
                     )
                     with urllib.request.urlopen(req, timeout=timeout_s + 3) as resp:
-                        return json.loads(resp.read().decode("utf-8"))
+                        remote_res = json.loads(resp.read().decode("utf-8"))
+                        event_bus.publish(
+                            "terminal_exec_done",
+                            {
+                                "id": exec_id,
+                                "cmd": command,
+                                "target": remote_res.get("node", target_node),
+                                "ok": remote_res.get("ok", True),
+                                "exit_code": remote_res.get("returncode", 0),
+                                "stdout": remote_res.get("stdout", ""),
+                                "stderr": remote_res.get("stderr", ""),
+                                "duration_ms": remote_res.get("duration_ms", 0.0),
+                                "ts": round(time.time(), 2),
+                            },
+                        )
+                        return remote_res
                 except Exception:
                     event_bus.publish(
                         "cluster_failover",
@@ -314,22 +340,67 @@ class ClusterManager:
                 timeout=timeout_s,
                 cwd=str(self.root_dir),
             )
-            return {
+            dur = round((time.time() - t0) * 1000.0, 1)
+            res = {
                 "ok": proc.returncode == 0,
                 "node": "facu",
                 "returncode": proc.returncode,
                 "stdout": proc.stdout[-4000:],
                 "stderr": proc.stderr[-2000:],
-                "duration_ms": round((time.time() - t0) * 1000.0, 1),
+                "duration_ms": dur,
                 "envelope": env.to_dict(),
             }
+            event_bus.publish(
+                "terminal_exec_done",
+                {
+                    "id": exec_id,
+                    "cmd": command,
+                    "target": "facu",
+                    "ok": res["ok"],
+                    "exit_code": proc.returncode,
+                    "stdout": res["stdout"],
+                    "stderr": res["stderr"],
+                    "duration_ms": dur,
+                    "ts": round(time.time(), 2),
+                },
+            )
+            return res
         except subprocess.TimeoutExpired:
+            err_msg = f"Timeout ({timeout_s}s) executing command"
+            event_bus.publish(
+                "terminal_exec_done",
+                {
+                    "id": exec_id,
+                    "cmd": command,
+                    "target": "facu",
+                    "ok": False,
+                    "exit_code": 124,
+                    "stdout": "",
+                    "stderr": err_msg,
+                    "duration_ms": round((time.time() - t0) * 1000.0, 1),
+                    "ts": round(time.time(), 2),
+                },
+            )
             return {
                 "ok": False,
                 "node": "facu",
-                "error": f"Timeout ({timeout_s}s) executing command",
+                "error": err_msg,
             }
         except Exception as exc:
+            event_bus.publish(
+                "terminal_exec_done",
+                {
+                    "id": exec_id,
+                    "cmd": command,
+                    "target": "facu",
+                    "ok": False,
+                    "exit_code": 1,
+                    "stdout": "",
+                    "stderr": str(exc),
+                    "duration_ms": round((time.time() - t0) * 1000.0, 1),
+                    "ts": round(time.time(), 2),
+                },
+            )
             return {"ok": False, "node": "facu", "error": str(exc)}
 
     def execute_shell(

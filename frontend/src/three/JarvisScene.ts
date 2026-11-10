@@ -10,6 +10,9 @@ export class JarvisScene {
   private camera: THREE.PerspectiveCamera;
   private clock: THREE.Clock;
   private avatar: CyberBird3D;
+  private subAvatarsGroup: THREE.Group;
+  private subAvatars: { id: string; color: string; avatar: CyberBird3D }[] = [];
+  private activeAgentColorHex = '#00f0ff';
   private frameId = 0;
   private isSoftwareGl = false;
 
@@ -90,9 +93,42 @@ export class JarvisScene {
     // 7. Environment & Stage Elements
     this.setupRoomEnvironment();
 
-    // 8. Add CyberBird3D Avatar System
+    // 8. Add CyberBird3D Avatar System (Dee Prime + 5 Identical Color-Coded Sub-Agents)
     this.avatar = new CyberBird3D();
     this.scene.add(this.avatar.group);
+
+    this.subAvatarsGroup = new THREE.Group();
+    this.subAvatarsGroup.visible = false;
+    const subSpecs = [
+      { id: 'hermes_local', color: '#ec4899', x: -2.55, z: -1.35, rotY: 0.35 },
+      { id: 'barto_forge', color: '#10b981', x: -1.35, z: -2.05, rotY: 0.2 },
+      { id: 'manager_scout', color: '#f59e0b', x: 0, z: -2.35, rotY: 0 },
+      { id: 'sentinel_sec', color: '#f43f5e', x: 1.35, z: -2.05, rotY: -0.2 },
+      { id: 'rakazo_memory', color: '#a855f7', x: 2.55, z: -1.35, rotY: -0.35 },
+    ];
+    subSpecs.forEach((sp) => {
+      const sub = new CyberBird3D();
+      sub.setAgentColorTheme(sp.color);
+      sub.group.scale.set(0.58, 0.58, 0.58);
+      sub.group.position.set(sp.x, -0.66, sp.z);
+      sub.group.rotation.y = sp.rotY;
+
+      // Sub-agent glowing floor ring
+      const sRingGeo = new THREE.RingGeometry(0.75, 0.8, 36);
+      const sRingMat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(sp.color),
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.75,
+      });
+      const sRing = new THREE.Mesh(sRingGeo, sRingMat);
+      sRing.rotation.x = -Math.PI / 2;
+      sRing.position.set(sp.x, -1.55, sp.z);
+      this.subAvatarsGroup.add(sRing);
+      this.subAvatarsGroup.add(sub.group);
+      this.subAvatars.push({ id: sp.id, color: sp.color, avatar: sub });
+    });
+    this.scene.add(this.subAvatarsGroup);
 
     // 9. Event Listeners
     this.bindEvents();
@@ -126,15 +162,17 @@ export class JarvisScene {
     this.scene.add(frontFill);
   }
 
-  private holoGlobe: THREE.Mesh | null = null;
-  private rackLeds: THREE.Mesh[] = [];
+  private outerFloorRing: THREE.Mesh | null = null;
+  private innerFloorRing: THREE.Mesh | null = null;
+  private pulseFloorRing: THREE.Mesh | null = null;
 
   private setupRoomEnvironment() {
+    // Minimalist Grok-Bot + Meta-Muse Dark Studio Floor (Character-Only Focus)
     const floorGeo = new THREE.PlaneGeometry(36, 36);
     const floorMat = new THREE.MeshStandardMaterial({
-      color: 0x030712,
-      roughness: 0.16,
-      metalness: 0.9,
+      color: 0x03060d,
+      roughness: 0.22,
+      metalness: 0.88,
     });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.position.y = -1.62;
@@ -142,147 +180,75 @@ export class JarvisScene {
     floor.receiveShadow = !this.isSoftwareGl;
     this.scene.add(floor);
 
-    const grid = new THREE.GridHelper(32, 32, 0x00f0ff, 0x1e293b);
+    const grid = new THREE.GridHelper(22, 22, 0x0ea5e9, 0x0f172a);
     grid.position.y = -1.61;
+    (grid.material as THREE.Material).transparent = true;
+    (grid.material as THREE.Material).opacity = 0.28;
     this.scene.add(grid);
 
-    const pedestalGeo = new THREE.CylinderGeometry(1.6, 1.8, 0.08, 32);
+    // Sleek Grok/Muse Quantum Pedestal solely for Dee
+    const pedestalGeo = new THREE.CylinderGeometry(1.35, 1.55, 0.06, 48);
     const pedestalMat = new THREE.MeshStandardMaterial({
-      color: 0x0b1120,
-      roughness: 0.25,
-      metalness: 0.92,
+      color: 0x070d19,
+      roughness: 0.2,
+      metalness: 0.95,
     });
     const pedestal = new THREE.Mesh(pedestalGeo, pedestalMat);
-    pedestal.position.set(0, -1.62, 0);
+    pedestal.position.set(0, -1.6, 0);
     this.scene.add(pedestal);
 
-    const ringGeo = new THREE.TorusGeometry(1.75, 0.02, 8, 48);
-    const ringMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
-    const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.rotation.x = Math.PI / 2;
-    ring.position.set(0, -1.58, 0);
-    this.scene.add(ring);
-
-    const deskGroup = new THREE.Group();
-    const deskSurfaceGeo = new THREE.CylinderGeometry(3.35, 3.35, 0.10, 48, 1, false, -Math.PI * 0.44, Math.PI * 0.88);
-    deskSurfaceGeo.rotateY(Math.PI * 0.5);
-    const deskMat = new THREE.MeshStandardMaterial({
-      color: 0x070e1b,
-      metalness: 0.9,
-      roughness: 0.18,
-    });
-    const deskSurface = new THREE.Mesh(deskSurfaceGeo, deskMat);
-    deskSurface.position.set(0, -0.62, 0);
-    deskGroup.add(deskSurface);
-
-    const deskOuterTrimGeo = new THREE.TorusGeometry(3.36, 0.022, 8, 48, Math.PI * 0.88);
-    deskOuterTrimGeo.rotateX(Math.PI * 0.5);
-    deskOuterTrimGeo.rotateZ(-Math.PI * 0.06);
-    const cyanTrimMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
-    const deskOuterTrim = new THREE.Mesh(deskOuterTrimGeo, cyanTrimMat);
-    deskOuterTrim.position.set(0, -0.57, 0);
-    deskGroup.add(deskOuterTrim);
-
-    const deskInnerTrimGeo = new THREE.TorusGeometry(2.1, 0.018, 8, 48, Math.PI * 0.88);
-    deskInnerTrimGeo.rotateX(Math.PI * 0.5);
-    deskInnerTrimGeo.rotateZ(-Math.PI * 0.06);
-    const magentaTrimMat = new THREE.MeshBasicMaterial({ color: 0xff00aa });
-    const deskInnerTrim = new THREE.Mesh(deskInnerTrimGeo, magentaTrimMat);
-    deskInnerTrim.position.set(0, -0.57, 0);
-    deskGroup.add(deskInnerTrim);
-
-    for (let p = -2; p <= 2; p++) {
-      const pAngle = p * 0.35;
-      const px = Math.cos(pAngle + Math.PI * 0.5) * 2.8;
-      const pz = Math.sin(pAngle + Math.PI * 0.5) * 2.8;
-      const pillarGeo = new THREE.CylinderGeometry(0.08, 0.10, 1.0, 16);
-      const pillarMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.95 });
-      const pillar = new THREE.Mesh(pillarGeo, pillarMat);
-      pillar.position.set(px, -1.12, pz);
-      deskGroup.add(pillar);
-    }
-    this.scene.add(deskGroup);
-
-    const racksGroup = new THREE.Group();
-    const rackPositionsX = [-4.6, -2.3, 0, 2.3, 4.6];
-    const rackMat = new THREE.MeshStandardMaterial({
-      color: 0x090e18,
-      metalness: 0.92,
-      roughness: 0.22,
-    });
-    const glassMat = new THREE.MeshPhysicalMaterial({
-      color: 0x0284c7,
-      transparent: true,
-      opacity: 0.3,
-      metalness: 0.1,
-      roughness: 0.1,
-      transmission: 0.6,
-    });
-
-    rackPositionsX.forEach((rx, rIdx) => {
-      const rack = new THREE.Group();
-      rack.position.set(rx, 0.5, -4.8);
-
-      const frameGeo = new THREE.BoxGeometry(1.6, 4.2, 0.85);
-      const frameMesh = new THREE.Mesh(frameGeo, rackMat);
-      rack.add(frameMesh);
-
-      const glassGeo = new THREE.PlaneGeometry(1.4, 4.0);
-      const glassMesh = new THREE.Mesh(glassGeo, glassMat);
-      glassMesh.position.z = 0.44;
-      rack.add(glassMesh);
-
-      for (let b = 0; b < 6; b++) {
-        const bladeGeo = new THREE.BoxGeometry(1.4, 0.45, 0.7);
-        const bladeMesh = new THREE.Mesh(bladeGeo, new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.9 }));
-        bladeMesh.position.set(0, -1.5 + b * 0.6, 0.05);
-        rack.add(bladeMesh);
-
-        for (let l = 0; l < 4; l++) {
-          const ledGeo = new THREE.BoxGeometry(0.04, 0.04, 0.02);
-          const ledColor = (rIdx + b + l) % 3 === 0 ? 0x22c55e : (rIdx + b + l) % 3 === 1 ? 0x00f0ff : 0xf59e0b;
-          const ledMat = new THREE.MeshBasicMaterial({ color: ledColor, transparent: true, opacity: 0.9 });
-          const ledMesh = new THREE.Mesh(ledGeo, ledMat);
-          ledMesh.position.set(-0.5 + l * 0.12, -1.5 + b * 0.6, 0.42);
-          rack.add(ledMesh);
-          this.rackLeds.push(ledMesh);
-        }
-      }
-
-      racksGroup.add(rack);
-    });
-    this.scene.add(racksGroup);
-
-    const globeGeo = new THREE.IcosahedronGeometry(1.15, 2);
-    const globeMat = new THREE.MeshBasicMaterial({
+    // Concentric Task-Reactive Energy Rings under Dee
+    const outerRingGeo = new THREE.RingGeometry(1.42, 1.47, 64);
+    const outerRingMat = new THREE.MeshBasicMaterial({
       color: 0x00f0ff,
-      wireframe: true,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.85,
+    });
+    this.outerFloorRing = new THREE.Mesh(outerRingGeo, outerRingMat);
+    this.outerFloorRing.rotation.x = -Math.PI / 2;
+    this.outerFloorRing.position.set(0, -1.56, 0);
+    this.scene.add(this.outerFloorRing);
+
+    const innerRingGeo = new THREE.RingGeometry(1.05, 1.09, 48, 1, 0, Math.PI * 1.65);
+    const innerRingMat = new THREE.MeshBasicMaterial({
+      color: 0x38bdf8,
+      side: THREE.DoubleSide,
       transparent: true,
       opacity: 0.65,
     });
-    this.holoGlobe = new THREE.Mesh(globeGeo, globeMat);
-    this.holoGlobe.position.set(0, 1.8, -4.2);
-    this.scene.add(this.holoGlobe);
+    this.innerFloorRing = new THREE.Mesh(innerRingGeo, innerRingMat);
+    this.innerFloorRing.rotation.x = -Math.PI / 2;
+    this.innerFloorRing.position.set(0, -1.555, 0);
+    this.scene.add(this.innerFloorRing);
 
-    const globeCoreGeo = new THREE.SphereGeometry(0.5, 16, 16);
-    const globeCoreMat = new THREE.MeshBasicMaterial({ color: 0x0284c7, transparent: true, opacity: 0.4 });
-    const globeCore = new THREE.Mesh(globeCoreGeo, globeCoreMat);
-    this.holoGlobe.add(globeCore);
+    const pulseRingGeo = new THREE.RingGeometry(1.65, 1.67, 64);
+    const pulseRingMat = new THREE.MeshBasicMaterial({
+      color: 0x10b981,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.35,
+    });
+    this.pulseFloorRing = new THREE.Mesh(pulseRingGeo, pulseRingMat);
+    this.pulseFloorRing.rotation.x = -Math.PI / 2;
+    this.pulseFloorRing.position.set(0, -1.565, 0);
+    this.scene.add(this.pulseFloorRing);
 
+    // Subtle floating quantum dust around Dee
     const particleGeo = new THREE.BufferGeometry();
-    const count = 60;
+    const count = 42;
     const pos = new Float32Array(count * 3);
     for (let i = 0; i < count * 3; i += 3) {
-      pos[i] = (Math.random() - 0.5) * 14;
-      pos[i + 1] = Math.random() * 5 - 1.2;
-      pos[i + 2] = (Math.random() - 0.5) * 10;
+      pos[i] = (Math.random() - 0.5) * 8;
+      pos[i + 1] = Math.random() * 4 - 1.2;
+      pos[i + 2] = (Math.random() - 0.5) * 6;
     }
     particleGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     const particleMat = new THREE.PointsMaterial({
-      color: 0x00f0ff,
-      size: 0.045,
+      color: 0x38bdf8,
+      size: 0.038,
       transparent: true,
-      opacity: 0.6,
+      opacity: 0.5,
       blending: THREE.AdditiveBlending,
     });
     const dust = new THREE.Points(particleGeo, particleMat);
@@ -397,13 +363,63 @@ export class JarvisScene {
       const delta = Math.min(0.12, this.clock.getDelta());
 
       this.avatar.update(delta, this.mouseNorm, this.lipSyncState);
-
-      if (this.holoGlobe) {
-        this.holoGlobe.rotation.y += delta * 0.25;
+      if (this.subAvatarsGroup.visible) {
+        for (let i = 0; i < this.subAvatars.length; i++) {
+          this.subAvatars[i].avatar.update(delta, this.mouseNorm, {
+            volume: 0,
+            frequency: 0,
+            viseme: 'neutral',
+          });
+        }
       }
+
       const t = this.clock.getElapsedTime();
-      for (let i = 0; i < this.rackLeds.length; i++) {
-        (this.rackLeds[i].material as THREE.MeshBasicMaterial).opacity = Math.sin(t * 8 + i * 1.5) > 0 ? 0.95 : 0.25;
+      if (this.outerFloorRing && this.innerFloorRing && this.pulseFloorRing) {
+        const outerMat = this.outerFloorRing.material as THREE.MeshBasicMaterial;
+        const innerMat = this.innerFloorRing.material as THREE.MeshBasicMaterial;
+        const pulseMat = this.pulseFloorRing.material as THREE.MeshBasicMaterial;
+
+        if (this.currentActionState === 'trabajando') {
+          outerMat.color.setHex(0x10b981);
+          innerMat.color.setHex(0x00f0ff);
+          pulseMat.color.setHex(0x34d399);
+          this.innerFloorRing.rotation.z += delta * 2.4;
+          const s = 1 + Math.sin(t * 7) * 0.08;
+          this.pulseFloorRing.scale.set(s, s, 1);
+          pulseMat.opacity = 0.65;
+        } else if (this.currentActionState === 'manipular_datos') {
+          outerMat.color.setHex(0xa855f7);
+          innerMat.color.setHex(0x38bdf8);
+          pulseMat.color.setHex(0xc084fc);
+          this.innerFloorRing.rotation.z -= delta * 2.0;
+          const s = 1 + Math.sin(t * 5) * 0.06;
+          this.pulseFloorRing.scale.set(s, s, 1);
+          pulseMat.opacity = 0.55;
+        } else if (this.currentActionState === 'explicacion') {
+          outerMat.color.setHex(0xf43f5e);
+          innerMat.color.setHex(0xfb7185);
+          pulseMat.color.setHex(0xe11d48);
+          this.innerFloorRing.rotation.z += delta * 3.0;
+          const s = 1 + Math.abs(Math.sin(t * 6)) * 0.1;
+          this.pulseFloorRing.scale.set(s, s, 1);
+          pulseMat.opacity = 0.7;
+        } else if (this.currentActionState === 'celebracion_salto') {
+          outerMat.color.setHex(0xf59e0b);
+          innerMat.color.setHex(0x10b981);
+          pulseMat.color.setHex(0xfbbf24);
+          this.innerFloorRing.rotation.z += delta * 3.5;
+          const s = 1 + Math.sin(t * 9) * 0.12;
+          this.pulseFloorRing.scale.set(s, s, 1);
+          pulseMat.opacity = 0.8;
+        } else {
+          outerMat.color.set(this.activeAgentColorHex);
+          innerMat.color.set(this.activeAgentColorHex);
+          pulseMat.color.set(this.activeAgentColorHex);
+          this.innerFloorRing.rotation.z += delta * 0.55;
+          const s = 1 + Math.sin(t * 2.2) * 0.03;
+          this.pulseFloorRing.scale.set(s, s, 1);
+          pulseMat.opacity = 0.3;
+        }
       }
 
       const radius = 4.6;
@@ -488,6 +504,18 @@ export class JarvisScene {
     this.currentActionState = action;
     this.markActive();
     this.avatar.setAction(action);
+    this.subAvatars.forEach((s) => s.avatar.setAction(action));
+  }
+
+  public setAgentColor(colorHex: string) {
+    this.activeAgentColorHex = colorHex || '#00f0ff';
+    this.markActive();
+    this.avatar.setAgentColorTheme(this.activeAgentColorHex);
+  }
+
+  public setShowSquadFormation(show: boolean) {
+    this.markActive();
+    this.subAvatarsGroup.visible = show;
   }
 
   public triggerJump() {

@@ -39,10 +39,17 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
+from core.computer_use import CDP_DRIVER, PC_CONTROLLER  # noqa: E402
+from core.computer_use.cdp_browser_driver import WEB_SHOT_PATH  # noqa: E402
+from core.computer_use.human_pc_controller import DESKTOP_SHOT_PATH  # noqa: E402
 from core.events import BUS, CHARACTER, TURN_CTRL  # noqa: E402
 from core.orchestrator.dee_engine import DEE_ENGINE  # noqa: E402
 from core.orchestrator.llm_pool import LLM_POOL  # noqa: E402
-from core.orchestrator.memory_md import MEMORY_STORE  # noqa: E402
+from core.orchestrator.local_rag import LOCAL_RAG  # noqa: E402
+from core.orchestrator.memory_md import MEMORY_STORE, SKILLS_DIR  # noqa: E402
+from core.orchestrator.real_ops import REAL_OPS  # noqa: E402
+from core.orchestrator.relay_engine import RELAY_ENGINE  # noqa: E402
+from core.orchestrator.worktree_forge import WORKTREE_FORGE  # noqa: E402
 from core.security.sentinel import SENTINEL  # noqa: E402
 from core.sensory import EARS, EYES, boot_sensory_system, emit_speech, sensory_snapshot  # noqa: E402
 from core.sensory.butler import TTS_CACHE_DIR  # noqa: E402
@@ -228,6 +235,56 @@ class DeeMasterHTTPHandler(BaseHTTPRequestHandler):
         if path == "/api/routines":
             return self._send_json(200, {"ok": True, "routines": DEE_ENGINE.routines.list_routines()})
 
+        if path == "/api/navegador/proxy":
+            target_url = (query.get("url") or ["https://facucercuetti.online/blog"])[0]
+            code, ctype, raw_bytes = REAL_OPS.proxy_html(target_url)
+            return self._send_bytes(code, raw_bytes, ctype)
+
+        if path == "/api/programas":
+            return self._send_json(200, REAL_OPS.list_programs_and_processes())
+
+        if path == "/api/agenda":
+            return self._send_json(200, {"ok": True, "agenda": REAL_OPS.list_agenda()})
+
+        if path == "/api/plugins":
+            return self._send_json(200, {"ok": True, "plugins": REAL_OPS.list_plugins()})
+
+        if path == "/api/proveedores":
+            return self._send_json(200, REAL_OPS.list_providers())
+
+        if path == "/api/configuracion":
+            return self._send_json(200, REAL_OPS.get_settings_and_squad())
+
+        if path == "/api/pc":
+            return self._send_json(200, PC_CONTROLLER.full_pc_status())
+
+        if path == "/api/pc/screenshot.jpg":
+            if not DESKTOP_SHOT_PATH.exists():
+                PC_CONTROLLER.capture_desktop_screenshot()
+            if DESKTOP_SHOT_PATH.exists():
+                return self._send_bytes(200, DESKTOP_SHOT_PATH.read_bytes(), "image/jpeg")
+            return self._send_json(404, {"error": "Captura de escritorio no disponible"})
+
+        if path == "/api/navegador/screenshot.png":
+            if WEB_SHOT_PATH.exists():
+                return self._send_bytes(200, WEB_SHOT_PATH.read_bytes(), "image/png")
+            return self._send_json(404, {"error": "Captura web no disponible"})
+
+        if path == "/api/cdp":
+            return self._send_json(200, CDP_DRIVER.list_cdp_targets())
+
+        if path == "/api/relay":
+            return self._send_json(200, RELAY_ENGINE.status())
+
+        if path == "/api/worktrees":
+            return self._send_json(200, WORKTREE_FORGE.list_worktrees())
+
+        if path == "/api/rag":
+            q_str = (query.get("q") or [""])[0].strip()
+            if q_str:
+                return self._send_json(200, LOCAL_RAG.query(q_str))
+            return self._send_json(200, LOCAL_RAG.stats())
+
         # Static Frontend Fallback
         static = resolve_static_file(path)
         if static:
@@ -359,6 +416,12 @@ class DeeMasterHTTPHandler(BaseHTTPRequestHandler):
             return self._send_json(200, res)
 
         if path == "/api/memories":
+            if body.get("action") == "delete_skill":
+                sid = str(body.get("id") or "")
+                sp = SKILLS_DIR / f"{sid}.json"
+                if sp.exists():
+                    sp.unlink()
+                return self._send_json(200, {"ok": True, "skills": list(MEMORY_STORE.list_skills().values())})
             if body.get("kind") == "skill":
                 sk = MEMORY_STORE.save_skill(
                     skill_id=str(body.get("id") or body.get("name") or "skill"),
@@ -366,10 +429,156 @@ class DeeMasterHTTPHandler(BaseHTTPRequestHandler):
                     description=str(body.get("description") or ""),
                     body=str(body.get("body") or ""),
                 )
-                return self._send_json(200, {"ok": True, "skill": sk})
+                if body.get("cmd"):
+                    sp = SKILLS_DIR / f"{sk['id']}.json"
+                    d = json.loads(sp.read_text(encoding="utf-8"))
+                    d["cmd"] = str(body["cmd"]).strip()
+                    d["tier"] = str(body.get("tier") or "primary")
+                    d["icon"] = str(body.get("icon") or "⚡")
+                    d["action"] = str(body.get("action") or "trabajando")
+                    d["emotion"] = str(body.get("emotion") or "curioso")
+                    sp.write_text(json.dumps(d, indent=2, ensure_ascii=False), encoding="utf-8")
+                    sk = d
+                return self._send_json(200, {"ok": True, "skill": sk, "skills": list(MEMORY_STORE.list_skills().values())})
             agent_id = str(body.get("agent_id") or "dee_core")
             content = str(body.get("content") or "")
             return self._send_json(200, MEMORY_STORE.write_memory(agent_id, content))
+
+        if path == "/api/navegador":
+            url = str(body.get("url") or "https://facucercuetti.online/blog")
+            return self._send_json(200, REAL_OPS.navigate_url(url))
+
+        if path == "/api/programas":
+            accion = str(body.get("accion") or "list")
+            if accion == "launch":
+                return self._send_json(200, REAL_OPS.launch_program(str(body.get("comando") or "")))
+            if accion == "kill":
+                return self._send_json(200, REAL_OPS.kill_process(int(body.get("pid") or 0)))
+            return self._send_json(200, REAL_OPS.list_programs_and_processes())
+
+        if path == "/api/agenda":
+            accion = str(body.get("accion") or "upsert")
+            if accion == "delete":
+                return self._send_json(200, REAL_OPS.delete_agenda_item(str(body.get("id") or "")))
+            return self._send_json(200, REAL_OPS.upsert_agenda_item(body))
+
+        if path == "/api/plugins":
+            accion = str(body.get("accion") or "upsert")
+            if accion == "delete":
+                return self._send_json(200, REAL_OPS.delete_plugin(str(body.get("id") or "")))
+            return self._send_json(200, REAL_OPS.upsert_plugin(body))
+
+        if path == "/api/proveedores":
+            accion = str(body.get("accion") or "upsert")
+            if accion == "delete":
+                return self._send_json(200, REAL_OPS.delete_provider(str(body.get("id") or "")))
+            return self._send_json(200, REAL_OPS.upsert_provider(body))
+
+        if path == "/api/configuracion":
+            accion = str(body.get("accion") or "settings")
+            if accion == "subagent":
+                res = REAL_OPS.update_subagent(body.get("agente") or body)
+                DEE_ENGINE.squad_cfg = {"agents": res["escuadron"]}
+                DEE_ENGINE.agents_by_id = {a["id"]: a for a in res["escuadron"]}
+                return self._send_json(200, res)
+            return self._send_json(200, REAL_OPS.save_settings(body.get("configuracion") or body))
+
+        if path == "/api/pc":
+            accion = str(body.get("accion") or "status")
+            if accion == "mouse_move":
+                return self._send_json(
+                    200,
+                    PC_CONTROLLER.mouse_move(
+                        int(body.get("x") or 0),
+                        int(body.get("y") or 0),
+                        smooth=bool(body.get("smooth", True)),
+                    ),
+                )
+            if accion == "mouse_click":
+                return self._send_json(
+                    200,
+                    PC_CONTROLLER.mouse_click(
+                        button=int(body.get("boton") or body.get("button") or 1),
+                        count=int(body.get("repeticiones") or body.get("count") or 1),
+                        x=int(body["x"]) if "x" in body and body["x"] is not None else None,
+                        y=int(body["y"]) if "y" in body and body["y"] is not None else None,
+                    ),
+                )
+            if accion == "mouse_drag":
+                return self._send_json(
+                    200,
+                    PC_CONTROLLER.mouse_drag(
+                        int(body.get("x1") or 0),
+                        int(body.get("y1") or 0),
+                        int(body.get("x2") or 100),
+                        int(body.get("y2") or 100),
+                    ),
+                )
+            if accion == "keyboard_type":
+                return self._send_json(200, PC_CONTROLLER.keyboard_type(str(body.get("texto") or body.get("text") or "")))
+            if accion == "keyboard_hotkey":
+                keys = body.get("teclas") or body.get("keys") or ["Return"]
+                return self._send_json(200, PC_CONTROLLER.keyboard_hotkey([str(k) for k in keys]))
+            if accion == "screenshot":
+                return self._send_json(200, PC_CONTROLLER.capture_desktop_screenshot())
+            if accion == "volume":
+                vol = int(body["nivel"]) if "nivel" in body else None
+                return self._send_json(200, PC_CONTROLLER.system_volume(vol))
+            return self._send_json(200, PC_CONTROLLER.full_pc_status())
+
+        if path == "/api/cdp":
+            accion = str(body.get("accion") or "map")
+            if accion == "launch":
+                return self._send_json(200, CDP_DRIVER.launch_cdp_browser(str(body.get("url") or "https://facucercuetti.online/blog")))
+            if accion == "screenshot":
+                return self._send_json(200, CDP_DRIVER.capture_web_screenshot(str(body.get("url") or "https://facucercuetti.online/blog")))
+            if accion == "targets":
+                return self._send_json(200, CDP_DRIVER.list_cdp_targets())
+            return self._send_json(
+                200,
+                CDP_DRIVER.inspect_interactive_map(
+                    str(body.get("url") or "https://facucercuetti.online/blog"),
+                    method=str(body.get("metodo") or "GET"),
+                    form_data=body.get("datos"),
+                ),
+            )
+
+        if path == "/api/relay":
+            return self._send_json(
+                200,
+                RELAY_ENGINE.dispatch_relay_job(
+                    target=str(body.get("destino") or body.get("target") or "facu"),
+                    instruction_or_cmd=str(body.get("comando") or body.get("payload") or "uptime"),
+                    kind=str(body.get("tipo") or body.get("kind") or "workbench"),
+                    busy_policy=str(body.get("busy_policy") or "steer"),
+                    hop=int(body.get("hop") or 0),
+                ),
+            )
+
+        if path == "/api/worktrees":
+            accion = str(body.get("accion") or "list")
+            if accion == "create":
+                return self._send_json(
+                    200,
+                    WORKTREE_FORGE.create_isolated_worktree(
+                        str(body.get("nombre") or "experimento"),
+                        base_ref=str(body.get("base") or "HEAD"),
+                    ),
+                )
+            if accion == "remove":
+                return self._send_json(200, WORKTREE_FORGE.remove_worktree(str(body.get("ruta") or "")))
+            return self._send_json(200, WORKTREE_FORGE.list_worktrees())
+
+        if path == "/api/rag":
+            accion = str(body.get("accion") or "query")
+            if accion == "ingest_dir":
+                return self._send_json(200, LOCAL_RAG.ingest_directory(body.get("ruta")))
+            if accion == "ingest_file":
+                return self._send_json(200, LOCAL_RAG.ingest_file(str(body.get("ruta") or "")))
+            return self._send_json(
+                200,
+                LOCAL_RAG.query(str(body.get("query") or body.get("q") or ""), top_k=int(body.get("top_k") or 6)),
+            )
 
         if path == "/api/routines":
             action = body.get("action", "upsert")

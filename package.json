@@ -1,0 +1,18 @@
+{
+  "name": "dee-bot-agents-desktop",
+  "version": "4.0.0",
+  "description": "Sistema Operativo de Agentes Autónomos Multi-Nodo en Electron + Three.js 3D — por Facu Cercuetti (@NickDev24)",
+  "author": "Facu Cercuetti (@NickDev24) <https://facucercuetti.online/blog>",
+  "license": "MIT",
+  "main": "desktop/main.cjs",
+  "scripts": {
+    "build": "cd frontend && npm run build",
+    "start": "node desktop/launch.cjs",
+    "desktop": "npm run build && node desktop/launch.cjs",
+    "servidor": "./scripts/start_dee.sh",
+    "test": "python3 scripts/smoke_test.py"
+  },
+  "devDependencies": {
+    "electron": "^35.0.0"
+  }
+}

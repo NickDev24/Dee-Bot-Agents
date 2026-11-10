@@ -1,0 +1,71 @@
+[
+  {
+    "id": "freellm_facu",
+    "nombre": "FreeLLMAPI Nodo Maestro (facu)",
+    "tipo": "openai_compatible",
+    "base_url": "http://127.0.0.1:3001/v1",
+    "host": "127.0.0.1",
+    "puerto": 3001,
+    "modelos": [
+      "auto",
+      "groq/llama-3.3-70b-versatile",
+      "gemini-2.5-flash"
+    ],
+    "costo": "$0 (Gratis / Local Gateway)",
+    "activo": true
+  },
+  {
+    "id": "freellm_barto",
+    "nombre": "FreeLLMAPI Nodo Worker 1 (barto)",
+    "tipo": "openai_compatible",
+    "base_url": "http://192.168.100.11:3001/v1",
+    "host": "192.168.100.11",
+    "puerto": 3001,
+    "modelos": [
+      "auto",
+      "deepseek-r1"
+    ],
+    "costo": "$0 (Clúster LAN)",
+    "activo": true
+  },
+  {
+    "id": "freellm_manager1",
+    "nombre": "FreeLLMAPI Nodo Worker 2 (manager1)",
+    "tipo": "openai_compatible",
+    "base_url": "http://192.168.100.12:3001/v1",
+    "host": "192.168.100.12",
+    "puerto": 3001,
+    "modelos": [
+      "auto",
+      "qwen-2.5-coder-32b"
+    ],
+    "costo": "$0 (Clúster LAN)",
+    "activo": true
+  },
+  {
+    "id": "hermes_local",
+    "nombre": "Hermes Agent Server (:8642)",
+    "tipo": "hermes_sse",
+    "base_url": "http://127.0.0.1:8642",
+    "host": "127.0.0.1",
+    "puerto": 8642,
+    "modelos": [
+      "hermes-autonomous-worker"
+    ],
+    "costo": "$0 (Demonio Local)",
+    "activo": true
+  },
+  {
+    "id": "dee_openai_bridge",
+    "nombre": "Dee-Bot-Agents OpenAI Bridge (:8091)",
+    "tipo": "openai_compatible",
+    "base_url": "http://127.0.0.1:8091/v1",
+    "host": "127.0.0.1",
+    "puerto": 8091,
+    "modelos": [
+      "dee-bot-agents-4.0"
+    ],
+    "costo": "$0 (Activo en este equipo)",
+    "activo": true
+  }
+]
