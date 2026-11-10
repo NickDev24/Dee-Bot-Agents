@@ -1,12 +1,16 @@
 {
   "project": "Dee-Bot-Agents",
   "version": "4.0.0-supreme",
+  "author": "Facu Cercuetti (@NickDev24)",
+  "website": "https://facucercuetti.online",
+  "blog": "https://facucercuetti.online/blog",
+  "repository": "https://github.com/NickDev24/Dee-Bot-Agents",
   "channel": "stable",
   "release_date": "2026-11-10",
-  "repository": "https://github.com/NickDev24/Dee-Bot-Agents",
   "branches": {
     "public": "main",
-    "control": "control-ops"
+    "control": "control-ops",
+    "private_control": "private-control"
   },
   "capabilities": {
     "sensory_ears_alsa": true,

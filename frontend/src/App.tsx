@@ -463,7 +463,7 @@ export default function App() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xs font-bold tracking-widest text-cyan-300 font-mono">
-                DEE-BOT-AGENTS // v4.0 SUPREME
+                DEE-BOT-AGENTS // v4.0 SUPREME · BY FACU CERCUETTI (@NickDev24)
               </h1>
               <span
                 className={`w-2 h-2 rounded-full ${

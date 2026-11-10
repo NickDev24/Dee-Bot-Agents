@@ -5,13 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "dee-bot-agents"
 version = "4.0.0"
-description = "Dee-Bot-Agents v4.0 Supreme: Ultra-lightweight Autonomous Physical & Multi-Agent System (Ears, Eyes, Voice, 3D HUD & 3-Node Cluster Orchestrator)"
+description = "Dee-Bot-Agents v4.0 Supreme by Facu Cercuetti (@NickDev24): Ultra-lightweight Autonomous Physical & Multi-Agent System (Ears, Eyes, Voice, 3D HUD & 3-Node Cluster Orchestrator)"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-  {name = "Facu (NickDev24)"}
+  {name = "Facu Cercuetti (NickDev24)"}
 ]
+urls = {Homepage = "https://facucercuetti.online", Blog = "https://facucercuetti.online/blog", Repository = "https://github.com/NickDev24/Dee-Bot-Agents"}
 dependencies = []
 
 [project.scripts]
