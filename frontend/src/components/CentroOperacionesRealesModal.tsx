@@ -1078,6 +1078,21 @@ export const CentroOperacionesRealesModal: React.FC<CentroOperacionesRealesModal
                             {cdpLatencia != null ? ` · ${Math.round(cdpLatencia)} ms` : ''}
                           </span>
                         )}
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const r = await fetch(`${baseUrl}/api/cdp`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ accion: 'screenshot_cdp', url: urlNavegador }),
+                            });
+                            const d = await r.json();
+                            notificar(d?.ok ? 'Captura real CDP guardada' : `Captura CDP falló: ${d?.error || ''}`);
+                          }}
+                          className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 text-[10px] shrink-0"
+                        >
+                          📸 Captura real CDP
+                        </button>
                       </div>
                       {mapaCdp.map((el) => (
                         <div
@@ -1099,6 +1114,20 @@ export const CentroOperacionesRealesModal: React.FC<CentroOperacionesRealesModal
                               Seguir
                             </button>
                           )}
+                          <button
+                            onClick={async () => {
+                              const r = await fetch(`${baseUrl}/api/cdp`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ accion: 'click', ref: el.ref }),
+                              });
+                              const d = await r.json();
+                              notificar(d?.ok ? `Clic real sobre ${el.ref}` : `No se pudo clicar ${el.ref}: ${d?.error || ''}`);
+                            }}
+                            className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] shrink-0"
+                          >
+                            Clic
+                          </button>
                         </div>
                       ))}
                     </div>

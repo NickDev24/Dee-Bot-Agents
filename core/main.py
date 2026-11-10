@@ -645,6 +645,28 @@ class DeeMasterHTTPHandler(BaseHTTPRequestHandler):
                 return self._send_json(200, CDP_DRIVER.capture_web_screenshot(str(body.get("url") or "https://facucercuetti.online/blog")))
             if accion == "targets":
                 return self._send_json(200, CDP_DRIVER.list_cdp_targets())
+            if accion == "click":
+                return self._send_json(
+                    200,
+                    CDP_DRIVER.click_ref(
+                        str(body.get("ref") or body.get("@ref") or ""),
+                        button=str(body.get("boton") or body.get("button") or "left"),
+                        clicks=int(body.get("clicks") or body.get("repeticiones") or 1),
+                        url=body.get("url"),
+                    ),
+                )
+            if accion == "type":
+                return self._send_json(
+                    200,
+                    CDP_DRIVER.type_ref(
+                        str(body.get("ref") or body.get("@ref") or ""),
+                        str(body.get("texto") or body.get("text") or ""),
+                        clear=bool(body.get("limpiar") or body.get("clear") or False),
+                        url=body.get("url"),
+                    ),
+                )
+            if accion in ("screenshot_cdp", "captura_cdp", "screenshot_real"):
+                return self._send_json(200, CDP_DRIVER.capture_page_screenshot(body.get("url")))
             return self._send_json(
                 200,
                 CDP_DRIVER.inspect_interactive_map(

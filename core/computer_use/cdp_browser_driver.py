@@ -150,6 +150,8 @@ class CDPBrowserDriver:
             ),
             ("Accept-Language", "es-AR,es;q=0.9,en;q=0.8"),
         ]
+        # Último mapa @ref capturado (para poder actuar sobre un @ref sin re-mapear)
+        self._last_map: dict[str, Any] | None = None
 
     def list_cdp_targets(self) -> dict[str, Any]:
         """Consulta las pestañas abiertas en el puerto CDP (`:9222`)."""
@@ -277,6 +279,7 @@ class CDPBrowserDriver:
             cdp_map = self.map_via_cdp(clean_url)
             dur_ms = round((time.time() - t0) * 1000.0, 1)
             self._publicar_mapa(cdp_map["url"], len(cdp_map["elementos"]), dur_ms, motor="cdp-websocket")
+            self._last_map = {"url": cdp_map["url"], "elementos": cdp_map["elementos"]}
             return {
                 "ok": True,
                 "motor": "cdp-websocket",
@@ -318,6 +321,7 @@ class CDPBrowserDriver:
             dur_ms = round((time.time() - t0) * 1000.0, 1)
 
             self._publicar_mapa(final_url, len(mapper.elements), dur_ms, motor="http-fallback")
+            self._last_map = {"url": final_url, "elementos": mapper.elements}
             return {
                 "ok": True,
                 "motor": "http-fallback",
@@ -365,6 +369,159 @@ class CDPBrowserDriver:
             return {"ok": False, "error": "No se generó el archivo de captura"}
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
+
+
+    # ----------------------------------------------------------------------
+    # 6. ACCIONES REALES SOBRE LA PÁGINA POR @ref (CDP Input.* / Runtime.*)
+    # ----------------------------------------------------------------------
+    def _normalizar_ref(self, ref: str) -> str:
+        r = str(ref or "").strip()
+        if r and not r.startswith("@"):
+            r = "@" + r
+        return r
+
+    def _resolver_elemento(self, ref: str, url: str | None = None) -> dict[str, Any] | None:
+        ref = self._normalizar_ref(ref)
+        if self._last_map is None or (url and self._last_map.get("url") != url):
+            target_url = url or (self._last_map.get("url") if self._last_map else None)
+            if target_url:
+                try:
+                    self.inspect_interactive_map(target_url)
+                except Exception:
+                    pass
+        if not self._last_map:
+            return None
+        for el in self._last_map.get("elementos") or []:
+            if str(el.get("ref")) == ref:
+                return el
+        return None
+
+    def _abrir_sesion(self, url: str | None = None) -> tuple[CDPSession, dict[str, Any]]:
+        target = None
+        if url:
+            target = self._pick_page_target(url)
+        if target is None and self._last_map and self._last_map.get("url"):
+            target = self._pick_page_target(str(self._last_map["url"]))
+        if target is None:
+            info = self.list_cdp_targets()
+            tabs = [t for t in (info.get("pestanas") or []) if t.get("ws_debugger")]
+            target = tabs[0] if tabs else None
+        if not target or not target.get("ws_debugger"):
+            raise CDPWebSocketError("No hay pestaña CDP disponible en :9222")
+        return CDPSession(str(target["ws_debugger"]), timeout=6.0), target
+
+    def click_ref(self, ref: str, button: str = "left", clicks: int = 1, url: str | None = None) -> dict[str, Any]:
+        """Hace clic real sobre el elemento identificado por @ref usando CDP Input.dispatchMouseEvent."""
+        el = self._resolver_elemento(ref, url)
+        if not el:
+            return {"ok": False, "error": f"No se encontró el elemento {ref} en el último mapa"}
+        selector = str(el.get("selector") or "")
+        session, target = self._abrir_sesion(url or (self._last_map.get("url") if self._last_map else None))
+        try:
+            rect_expr = (
+                "(() => {"
+                "  const el = document.querySelector(" + json.dumps(selector) + ");"
+                "  if (!el) return null;"
+                "  el.scrollIntoView({block:'center', inline:'center'});"
+                "  const r = el.getBoundingClientRect();"
+                "  return {found:true, x:r.left, y:r.top, width:r.width, height:r.height, cx:r.left+r.width/2, cy:r.top+r.height/2};"
+                "})()"
+            )
+            rect = session.evaluate(rect_expr, timeout=6.0)
+            if not isinstance(rect, dict) or not rect.get("found"):
+                return {"ok": False, "ref": self._normalizar_ref(ref), "error": "El selector ya no existe en el DOM"}
+            cx = float(rect["cx"])
+            cy = float(rect["cy"])
+            btn = button if button in ("left", "middle", "right") else "left"
+            cdp_button = btn
+            for _ in range(max(1, min(int(clicks or 1), 5))):
+                session.call("Input.dispatchMouseEvent", {"type": "mousePressed", "x": cx, "y": cy, "button": cdp_button, "clickCount": 1}, timeout=4.0)
+                session.call("Input.dispatchMouseEvent", {"type": "mouseReleased", "x": cx, "y": cy, "button": cdp_button, "clickCount": 1}, timeout=4.0)
+                time.sleep(0.05)
+            return {
+                "ok": True,
+                "accion": "click_ref",
+                "ref": self._normalizar_ref(ref),
+                "selector": selector,
+                "boton": btn,
+                "repeticiones": max(1, min(int(clicks or 1), 5)),
+                "x": round(cx, 1),
+                "y": round(cy, 1),
+                "elemento": {"tag": el.get("tag"), "texto": el.get("texto"), "nombre": el.get("nombre")},
+            }
+        except Exception as exc:
+            return {"ok": False, "ref": self._normalizar_ref(ref), "error": str(exc)}
+        finally:
+            session.close()
+
+    def type_ref(self, ref: str, text: str, clear: bool = False, url: str | None = None) -> dict[str, Any]:
+        """Escribe texto real en el campo identificado por @ref usando CDP Input.insertText."""
+        el = self._resolver_elemento(ref, url)
+        if not el:
+            return {"ok": False, "error": f"No se encontró el elemento {ref} en el último mapa"}
+        selector = str(el.get("selector") or "")
+        session, target = self._abrir_sesion(url or (self._last_map.get("url") if self._last_map else None))
+        try:
+            focus_expr = (
+                "(() => {"
+                "  const el = document.querySelector(" + json.dumps(selector) + ");"
+                "  if (!el) return {found:false};"
+                "  el.scrollIntoView({block:'center', inline:'center'});"
+                "  el.focus();"
+                + ("  el.value = '';" if clear else "") +
+                "  return {found:true, tag:el.tagName.toLowerCase()};"
+                "})()"
+            )
+            focused = session.evaluate(focus_expr, timeout=6.0)
+            if not isinstance(focused, dict) or not focused.get("found"):
+                return {"ok": False, "ref": self._normalizar_ref(ref), "error": "El campo ya no existe en el DOM"}
+            if text:
+                session.call("Input.insertText", {"text": str(text)}, timeout=6.0)
+            # Disparar eventos para frameworks reactivos
+            session.evaluate(
+                "(() => { const el = document.querySelector(" + json.dumps(selector) + ");"
+                " if (el) { el.dispatchEvent(new Event('input',{bubbles:true})); el.dispatchEvent(new Event('change',{bubbles:true})); } })()",
+                timeout=4.0,
+            )
+            return {
+                "ok": True,
+                "accion": "type_ref",
+                "ref": self._normalizar_ref(ref),
+                "selector": selector,
+                "caracteres": len(str(text or "")),
+                "limpio": bool(clear),
+            }
+        except Exception as exc:
+            return {"ok": False, "ref": self._normalizar_ref(ref), "error": str(exc)}
+        finally:
+            session.close()
+
+    def capture_page_screenshot(self, url: str | None = None) -> dict[str, Any]:
+        """Captura PNG real de la pestaña renderizada usando Page.captureScreenshot de CDP."""
+        session, target = self._abrir_sesion(url)
+        try:
+            if url:
+                session.navigate(url, timeout=10.0)
+                time.sleep(0.4)
+            result = session.call("Page.captureScreenshot", {"format": "png"}, timeout=10.0)
+            data_b64 = result.get("data") if isinstance(result, dict) else None
+            if not data_b64:
+                return {"ok": False, "error": "Page.captureScreenshot no devolvió datos"}
+            import base64 as _b64
+            raw = _b64.b64decode(data_b64)
+            WEB_SHOT_PATH.write_bytes(raw)
+            return {
+                "ok": True,
+                "accion": "screenshot_cdp",
+                "url": url or (target.get("url") if isinstance(target, dict) else ""),
+                "screenshot_url": f"/api/navegador/screenshot.png?t={int(time.time() * 1000)}",
+                "bytes": len(raw),
+                "latencia_ms": None,
+            }
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+        finally:
+            session.close()
 
 
 CDP_DRIVER = CDPBrowserDriver()
